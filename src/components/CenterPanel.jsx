@@ -66,23 +66,25 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
   const activeMachine = selectedMachineId ? machinesData[selectedMachineId] : null;
   const sensors = activeMachine ? activeMachine.sensors : (machinesData.motor ? machinesData.motor.sensors : {});
 
-  // Safe telemetry sensor fallbacks
-  const tempSensor = sensors.temp || { current: 70, warn: 75, critical: 85, max: 120, history: [] };
+  // Safe telemetry sensor fallbacks - dynamically bound to actual CSV columns in order
+  const sensorArray = Object.values(sensors);
+  
+  const tempSensor = sensorArray[0] || { current: 70, warn: 75, critical: 85, max: 120, history: Array(20).fill(70), id: "temp", name: "TEMPERATURE", unit: "°C" };
   const tempVal = tempSensor.current;
   
-  const vibSensor = sensors.vibration || { current: 1.5, warn: 1.2, critical: 2.0, max: 5, history: [] };
-  const vibVal = vibSensor.current;
-  
-  const pressSensor = sensors.pressure || { current: 80, warn: 85, critical: 100, max: 150, history: [] };
-  const pressVal = pressSensor.current;
-  
-  const voltSensor = sensors.voltage || { current: 185, warn: 200, critical: 220, max: 250, history: [] };
+  const voltSensor = sensorArray[1] || { current: 185, warn: 200, critical: 220, max: 250, history: Array(20).fill(185), id: "voltage", name: "LINE VOLTAGE", unit: "V" };
   const voltVal = voltSensor.current;
   
-  const flowSensor = sensors.flow || { current: 4.2, warn: 3.5, critical: 2.5, max: 10, history: [] };
+  const pressSensor = sensorArray[2] || { current: 80, warn: 85, critical: 100, max: 150, history: Array(20).fill(80), id: "pressure", name: "CORE PRESSURE", unit: "PSI" };
+  const pressVal = pressSensor.current;
+  
+  const flowSensor = sensorArray[3] || { current: 4.2, warn: 3.5, critical: 2.5, max: 10, history: Array(20).fill(4.2), id: "flow", name: "COOLANT FLOW", unit: "L/s" };
   const flowVal = flowSensor.current;
   
-  const currSensor = sensors.current || { current: 13, warn: 22, critical: 26, max: 30, history: [] };
+  const vibSensor = sensorArray[4] || { current: 1.5, warn: 1.2, critical: 2.0, max: 5, history: Array(20).fill(1.5), id: "vibration", name: "ROTOR VIBRATION", unit: "g" };
+  const vibVal = vibSensor.current;
+  
+  const currSensor = sensorArray[5] || { current: 13, warn: 22, critical: 26, max: 30, history: Array(20).fill(13), id: "current", name: "INDUCTION CURRENT", unit: "A" };
   const currVal = currSensor.current;
 
   // Active risk of current selected segment
@@ -90,7 +92,6 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
 
   // Computed manager summary health metric
   let healthScore = 100;
-  const sensorArray = Object.values(sensors);
   sensorArray.forEach(s => {
     if (s.current >= s.critical) healthScore -= 12;
     else if (s.current >= s.warn) healthScore -= 6;
@@ -158,8 +159,8 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
         {/* Real-time Operator grid: Main Recharts area chart */}
         <div className="chart-grid" style={{ display: "grid", gridTemplateColumns: "1fr", gap: "20px" }}>
           <Chart
-            title={`${activeMachine?.name || "SYSTEM"} TEMPERATURE (PRIMARY FOCUS)`}
-            value={`${tempVal.toFixed(1)}°C`}
+            title={`${activeMachine?.name || "SYSTEM"} ${tempSensor.name.toUpperCase()} (PRIMARY FOCUS)`}
+            value={`${tempVal.toFixed(1)}${tempSensor.unit}`}
             data={tempSensor.history}
             color="var(--red)"
             warnVal={tempSensor.warn}
@@ -168,35 +169,28 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
         </div>
 
         {/* Supporting SCADA Telemetry Stream (Faint low-opacity panels for density) */}
-        <div className="supporting-telemetry-section fade-in">
-          <div className="supporting-telemetry-header">◆ SUPPORTING SYSTEM TELEMETRY (LOW-OPACITY REFERENCE)</div>
-          <div className="secondary-visuals-grid">
-            <Chart
-              title="Line Voltage"
-              value={`${voltVal.toFixed(1)}V`}
-              data={voltSensor.history}
-              color="var(--blue)"
-              warnVal={voltSensor.warn}
-              critVal={voltSensor.critical}
-            />
-            <Chart
-              title="Core Pressure"
-              value={`${pressVal.toFixed(1)} PSI`}
-              data={pressSensor.history}
-              color="var(--yellow)"
-              warnVal={pressSensor.warn}
-              critVal={pressSensor.critical}
-            />
-            <Chart
-              title="Coolant Flow"
-              value={`${flowVal.toFixed(2)} L/s`}
-              data={flowSensor.history}
-              color="var(--green)"
-              warnVal={flowSensor.warn}
-              critVal={flowSensor.critical}
-            />
+        {sensorArray.length > 1 && (
+          <div className="supporting-telemetry-section fade-in">
+            <div className="supporting-telemetry-header">◆ SUPPORTING SYSTEM TELEMETRY (LOW-OPACITY REFERENCE)</div>
+            <div className="secondary-visuals-grid">
+              {sensorArray.slice(1).map((s, idx) => {
+                const colors = ["var(--blue)", "var(--yellow)", "var(--green)", "var(--purple)", "var(--accent)"];
+                const color = colors[idx % colors.length];
+                return (
+                  <Chart
+                    key={s.id}
+                    title={s.name}
+                    value={`${s.current.toFixed(1)}${s.unit}`}
+                    data={s.history}
+                    color={color}
+                    warnVal={s.warn}
+                    critVal={s.critical}
+                  />
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Action Panel reduced load confirmation toast */}
         {loadReduced && (
@@ -313,57 +307,24 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
           <button className={`eng-tab ${activeTab === "history" ? "active" : ""}`} onClick={() => setActiveTab("history")}>🕐 EVENT HISTORY</button>
         </div>
 
-        {/* Tab 1: Live Trends (Renders all 6 telemetry graphs at once) */}
+        {/* Tab 1: Live Trends (Renders telemetry graphs dynamically) */}
         {activeTab === "trends" && (
           <div className="chart-grid fade-in">
-            <Chart
-              title={`${activeMachine?.name || "MOTOR"} TEMPERATURE`}
-              value={`${tempVal.toFixed(1)}°C`}
-              data={tempSensor.history}
-              color="var(--red)"
-              warnVal={tempSensor.warn}
-              critVal={tempSensor.critical}
-            />
-            <Chart
-              title="System Main Voltage"
-              value={`${voltVal.toFixed(1)}V`}
-              data={voltSensor.history}
-              color="var(--blue)"
-              warnVal={voltSensor.warn}
-              critVal={voltSensor.critical}
-            />
-            <Chart
-              title="System Core Pressure"
-              value={`${pressVal.toFixed(1)} PSI`}
-              data={pressSensor.history}
-              color="var(--yellow)"
-              warnVal={pressSensor.warn}
-              critVal={pressSensor.critical}
-            />
-            <Chart
-              title="Coolant Flow Rate"
-              value={`${flowVal.toFixed(2)} L/s`}
-              data={flowSensor.history}
-              color="var(--green)"
-              warnVal={flowSensor.warn}
-              critVal={flowSensor.critical}
-            />
-            <Chart
-              title="Rotor Vibration"
-              value={`${vibVal.toFixed(2)}g`}
-              data={vibSensor.history}
-              color="var(--accent)"
-              warnVal={vibSensor.warn}
-              critVal={vibSensor.critical}
-            />
-            <Chart
-              title="Induction Current"
-              value={`${currVal.toFixed(1)}A`}
-              data={currSensor.history}
-              color="var(--purple)"
-              warnVal={currSensor.warn}
-              critVal={currSensor.critical}
-            />
+            {sensorArray.map((s, idx) => {
+              const colors = ["var(--red)", "var(--blue)", "var(--yellow)", "var(--green)", "var(--accent)", "var(--purple)"];
+              const color = colors[idx % colors.length];
+              return (
+                <Chart
+                  key={s.id}
+                  title={`${activeMachine?.name || ""} ${s.name}`}
+                  value={`${s.current.toFixed(1)}${s.unit}`}
+                  data={s.history}
+                  color={color}
+                  warnVal={s.warn}
+                  critVal={s.critical}
+                />
+              );
+            })}
           </div>
         )}
 
@@ -380,10 +341,10 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
                 critLimit={70}
               />
               <Gauge
-                title="Operational Temp Instrument"
+                title={`Operational ${tempSensor.name}`}
                 value={tempVal}
                 max={tempSensor.max}
-                unit="°C"
+                unit={tempSensor.unit}
                 warnLimit={tempSensor.warn}
                 critLimit={tempSensor.critical}
               />
@@ -404,31 +365,28 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>Secondary Rotor Shaft</td>
-                    <td className="status-good">ONLINE / NORMAL</td>
-                    <td>{((vibVal / vibSensor.max) * 100).toFixed(0)}%</td>
-                    <td>12 ms</td>
-                    <td>99.98%</td>
-                  </tr>
-                  <tr>
-                    <td>Cooling Liquid Circuit</td>
-                    <td className={tempVal > tempSensor.critical ? "status-bad" : tempVal > tempSensor.warn ? "status-warn" : "status-good"}>
-                      {tempVal > tempSensor.critical ? "CRIT OVERHEAT" : tempVal > tempSensor.warn ? "TEMP WARNING" : "ONLINE / NOMINAL"}
-                    </td>
-                    <td>{((tempVal / tempSensor.max) * 100).toFixed(0)}%</td>
-                    <td>35 ms</td>
-                    <td>99.42%</td>
-                  </tr>
-                  <tr>
-                    <td>Fluid Intake Valve</td>
-                    <td className={pressVal > pressSensor.critical ? "status-bad" : "status-good"}>
-                      {pressVal > pressSensor.critical ? "VALVE OVERPRESSURE" : "ONLINE / NOMINAL"}
-                    </td>
-                    <td>{((pressVal / pressSensor.max) * 100).toFixed(0)}%</td>
-                    <td>4 ms</td>
-                    <td>99.91%</td>
-                  </tr>
+                  {sensorArray.map((s, idx) => {
+                    const isWarn = s.current >= s.warn;
+                    const isCrit = s.current >= s.critical;
+                    const statusClass = isCrit ? "status-bad" : isWarn ? "status-warn" : "status-good";
+                    const statusText = isCrit ? "CRIT OVERLIMIT" : isWarn ? "WARNING SHIFT" : "ONLINE / NOMINAL";
+                    const pct = s.max > 0 ? ((s.current / s.max) * 100).toFixed(0) : 0;
+                    
+                    const latencies = [12, 35, 4, 18, 22];
+                    const latency = latencies[idx % latencies.length];
+                    const accuracies = ["99.98%", "99.42%", "99.91%", "99.85%", "99.94%"];
+                    const accuracy = accuracies[idx % accuracies.length];
+                    
+                    return (
+                      <tr key={s.id}>
+                        <td>{s.name}</td>
+                        <td className={statusClass}>{statusText}</td>
+                        <td>{pct}%</td>
+                        <td>{latency} ms</td>
+                        <td>{accuracy}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -438,10 +396,22 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
         {/* Tab 3: Health - High Impact Gauges utilized */}
         {activeTab === "health" && (
           <div className="fade-in" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-            <Gauge title="Rotor Shaft Integrity" value={100 - (vibVal / vibSensor.max) * 100} max={100} unit="%" warnLimit={30} critLimit={15} />
-            <Gauge title="Coolant Pump Head" value={(flowVal / flowSensor.max) * 100} max={100} unit="%" warnLimit={35} critLimit={20} />
-            <Gauge title="Intake Valve Margin" value={100 - (pressVal / pressSensor.max) * 100} max={100} unit="%" warnLimit={40} critLimit={25} />
-            <Gauge title="Winding Energy Factor" value={100 - (currVal / currSensor.max) * 100} max={100} unit="%" warnLimit={40} critLimit={20} />
+            {sensorArray.map((s) => {
+              const healthVal = s.critical > 0 
+                ? Math.max(0, Math.min(100, ((s.critical - s.current) / s.critical) * 100 + 50)) 
+                : 100;
+              return (
+                <Gauge 
+                  key={s.id} 
+                  title={`${s.name} Integrity`} 
+                  value={healthVal} 
+                  max={100} 
+                  unit="%" 
+                  warnLimit={40} 
+                  critLimit={20} 
+                />
+              );
+            })}
           </div>
         )}
 
@@ -640,24 +610,14 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
 
                   {/* Right Column: Simplified key metrics readout */}
                   <div className="manager-stats-container">
-                    <div className="manager-stat-row">
-                      <span className="manager-stat-name">TEMPERATURE</span>
-                      <span className="manager-stat-val" style={{ color: tempSens.current >= tempSens.warn ? "var(--yellow)" : "var(--text-main)" }}>
-                        {tempSens.current.toFixed(1)}{tempSens.unit}
-                      </span>
-                    </div>
-                    <div className="manager-stat-row">
-                      <span className="manager-stat-name">PRESSURE</span>
-                      <span className="manager-stat-val" style={{ color: pressSens.current >= pressSens.warn ? "var(--yellow)" : "var(--text-main)" }}>
-                        {pressSens.current.toFixed(1)}{pressSens.unit}
-                      </span>
-                    </div>
-                    <div className="manager-stat-row">
-                      <span className="manager-stat-name">CURRENT</span>
-                      <span className="manager-stat-val" style={{ color: currSens.current >= currSens.warn ? "var(--yellow)" : "var(--text-main)" }}>
-                        {currSens.current.toFixed(1)}{currSens.unit}
-                      </span>
-                    </div>
+                    {Object.values(mSensors).slice(0, 3).map((s) => (
+                      <div key={s.id} className="manager-stat-row">
+                        <span className="manager-stat-name">{s.name}</span>
+                        <span className="manager-stat-val" style={{ color: s.current >= s.warn ? "var(--yellow)" : "var(--text-main)" }}>
+                          {s.current.toFixed(1)}{s.unit}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
 

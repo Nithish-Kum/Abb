@@ -95,123 +95,162 @@ function Dashboard({ role }) {
     ? machinesData[selectedMachineId].risk
     : 0;
 
-  // Real-time generator updates (every 1.5 seconds to feel responsive and fast)
+  // Dynamic CSV Parser
+  const parseCSV = (text) => {
+    if (!text) return [];
+    const lines = text.trim().split("\n");
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(",").map(h => h.trim());
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const values = line.split(",").map(v => v.trim());
+      const row = {};
+      headers.forEach((h, index) => {
+        row[h] = values[index];
+      });
+      rows.push(row);
+    }
+    return rows;
+  };
+
+  // Helper to determine dynamic unit
+  const getUnit = (k) => {
+    const c = k.toLowerCase();
+    if (c.includes("temp")) return "°C";
+    if (c.includes("voltage") || c === "volt") return "V";
+    if (c.includes("pressure") || c === "psi") return "PSI";
+    if (c.includes("flow")) return "L/s";
+    if (c.includes("vibration")) return "g";
+    if (c.includes("current") || c === "amp") return "A";
+    if (c.includes("frequency") || c === "hz") return "Hz";
+    if (c.includes("load") || c.includes("efficiency") || c.includes("pct") || c.includes("ratio")) return "%";
+    if (c.includes("power") || c === "watt" || c === "kw") return "kW";
+    return "";
+  };
+
+  const SENSOR_METRIC_RULES = {
+    temp: { name: "MOTOR CORE TEMP", unit: "°C", max: 120, warn: 75, critical: 85 },
+    vibration: { name: "ROTOR VIBRATION", unit: "g", max: 5, warn: 1.2, critical: 2.0 },
+    pressure: { name: "CORE PRESSURE", unit: "PSI", max: 200, warn: 85, critical: 100 },
+    voltage: { name: "LINE VOLTAGE", unit: "V", max: 250, warn: 200, critical: 220 },
+    current: { name: "INDUCTION CURRENT", unit: "A", max: 30, warn: 22, critical: 26 },
+    flow_rate: { name: "FLOW RATE", unit: "L/s", max: 10, warn: 3.5, critical: 2.5 },
+    efficiency: { name: "EFFICIENCY", unit: "%", max: 100, warn: 75, critical: 70 },
+    power: { name: "POWER OUTPUT", unit: "kW", max: 300, warn: 240, critical: 260 },
+    load: { name: "GRID LOAD", unit: "%", max: 100, warn: 75, critical: 85 },
+    frequency: { name: "LINE FREQUENCY", unit: "Hz", max: 60, warn: 49, critical: 48 }
+  };
+
+  // Real-time telemetry fetch updates (every 2 seconds)
   useEffect(() => {
-    const simulateData = () => {
-      setMachinesData(prev => {
-        const next = { ...prev };
-        const newAlerts = [];
+    if (!selectedMachineId) return;
 
-        Object.keys(next).forEach(mId => {
-          const m = { ...next[mId] };
-          const sMap = { ...m.sensors };
+    const fetchData = () => {
+      const csvPath = `/datasets/${selectedMachineId}_data.csv?ts=${Date.now()}`;
+      fetch(csvPath)
+        .then(res => {
+          if (!res.ok) throw new Error("Failed to fetch CSV");
+          return res.text();
+        })
+        .then(text => {
+          const rows = parseCSV(text);
+          if (rows.length === 0) return;
+          const latestRow = rows[rows.length - 1];
+          
+          const sensorKeys = Object.keys(latestRow).filter(k => k !== "timestamp" && k !== "status" && k !== "risk");
+          const sensorsMap = {};
+          
+          sensorKeys.forEach(key => {
+            const histRows = rows.slice(-20);
+            const historyValues = histRows.map(r => Number(r[key]) || 0);
+            const currentVal = Number(latestRow[key]) || 0;
+            const normKey = key.toLowerCase();
+            
+            const rule = SENSOR_METRIC_RULES[normKey] || {
+              name: key.toUpperCase().replace("_", " "),
+              unit: getUnit(key),
+              max: Math.max(...historyValues, 10) * 1.25,
+              warn: Math.max(...historyValues, 10) * 0.7,
+              critical: Math.max(...historyValues, 10) * 0.85
+            };
 
-          // A. State time transition tick
-          m.state_time -= 1;
-          if (m.state_time <= 0) {
-            if (m.mode === "normal") {
-              m.mode = "warning";
-              m.state_time = Math.floor(Math.random() * 4) + 5; // warning for 5-8 ticks
-            } else if (m.mode === "warning") {
-              m.mode = "failure";
-              m.state_time = Math.floor(Math.random() * 4) + 4; // failure for 4-7 ticks
-            } else if (m.mode === "failure") {
-              m.mode = "recovery";
-              m.state_time = Math.floor(Math.random() * 3) + 4; // recovery for 4-6 ticks
-            } else {
-              m.mode = "normal";
-              m.state_time = Math.floor(Math.random() * 5) + 6; // normal for 6-10 ticks
-            }
-          }
+            sensorsMap[key] = {
+              id: key,
+              name: rule.name,
+              value: rule.max * 0.7,
+              current: currentVal,
+              unit: rule.unit,
+              max: rule.max,
+              warn: rule.warn,
+              critical: rule.critical,
+              history: historyValues
+            };
+          });
 
-          // B. Fluctuate sensors based on machine active state
-          Object.keys(sMap).forEach(sId => {
-            const s = { ...sMap[sId] };
-            let newVal = s.current;
+          const mode = latestRow.status ? latestRow.status.toLowerCase() : "normal";
+          const risk = Number(latestRow.risk) || 0;
 
-            if (m.mode === "normal") {
-              // Drift gently back to baseline specification limits
-              const restoreForce = (s.value - s.current) * 0.15;
-              const noise = Math.random() * (s.max * 0.04) - (s.max * 0.02);
-              newVal += restoreForce + noise;
-            } else if (m.mode === "warning") {
-              // Rise gently into warning thresholds
-              const increment = Math.random() * (s.max * 0.035);
-              newVal += increment;
-            } else if (m.mode === "failure") {
-              // Rise steeply and oscillate aggressively in failures
-              const increment = Math.random() * (s.max * 0.08) + (s.max * 0.02);
-              newVal += increment;
-            } else if (m.mode === "recovery") {
-              // Descend rapidly toward nominal values
-              const decrement = Math.random() * (s.max * 0.09) + (s.max * 0.01);
-              newVal -= decrement;
-            }
-
-            // Clamping rules to protect system scaling boundaries
-            newVal = Math.max(s.value * 0.5, Math.min(s.max * 1.05, newVal));
-            s.current = newVal;
-            s.history = [...s.history.slice(1), newVal];
-
-            sMap[sId] = s;
-
-            // Generate contextual alerts when warning/critical thresholds are breached
+          // Contextual alerts generation when warning/critical thresholds are breached
+          const newAlerts = [];
+          Object.values(sensorsMap).forEach(s => {
             if (s.current >= s.critical) {
               newAlerts.push({
-                id: `alert-${mId}-${sId}-${Date.now()}`,
-                machineId: mId,
+                id: `alert-${selectedMachineId}-${s.id}-${Date.now()}`,
+                machineId: selectedMachineId,
                 type: "critical",
                 sensor: s.name,
-                msg: `🔴 CRITICAL OUT-OF-LIMITS: ${m.name} ${s.name} of ${s.current.toFixed(1)}${s.unit} breached critical threshold!`,
+                msg: `🔴 CRITICAL OUT-OF-LIMITS: ${selectedMachineId.toUpperCase()} ${s.name} of ${s.current.toFixed(1)}${s.unit} breached critical threshold!`,
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
               });
             } else if (s.current >= s.warn) {
               newAlerts.push({
-                id: `alert-${mId}-${sId}-${Date.now()}`,
-                machineId: mId,
+                id: `alert-${selectedMachineId}-${s.id}-${Date.now()}`,
+                machineId: selectedMachineId,
                 type: "warning",
                 sensor: s.name,
-                msg: `⚠️ TELEMETRY WARN WARNING: ${m.name} ${s.name} at ${s.current.toFixed(1)}${s.unit} exceeds caution limits.`,
+                msg: `⚠️ TELEMETRY WARN WARNING: ${selectedMachineId.toUpperCase()} ${s.name} at ${s.current.toFixed(1)}${s.unit} exceeds caution limits.`,
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
               });
             }
           });
 
-          m.sensors = sMap;
-
-          // C. Calculate cumulative machine risk score dynamically
-          let riskAccum = 0;
-          Object.values(sMap).forEach(s => {
-            if (s.current >= s.critical) riskAccum += 22;
-            else if (s.current >= s.warn) riskAccum += 12;
+          setMachinesData(prev => {
+            const next = { ...prev };
+            if (next[selectedMachineId]) {
+              next[selectedMachineId] = {
+                ...next[selectedMachineId],
+                mode: mode,
+                risk: risk,
+                sensors: sensorsMap
+              };
+            }
+            return next;
           });
-          m.risk = Math.min(100, Math.max(0, riskAccum + Math.floor(Math.random() * 5)));
 
-          next[mId] = m;
+          if (newAlerts.length > 0) {
+            setAlerts(prevAlerts => {
+              const keys = new Set();
+              const blended = [...newAlerts, ...prevAlerts];
+              return blended.filter(a => {
+                const key = `${a.machineId}-${a.sensor}`;
+                if (keys.has(key)) return false;
+                keys.add(key);
+                return true;
+              }).slice(0, 10);
+            });
+          }
+        })
+        .catch(err => {
+          console.error("Error fetching telemetry CSV:", err);
         });
-
-        // Sync generated alerts state safely
-        if (newAlerts.length > 0) {
-          setAlerts(prevAlerts => {
-            // Filter to keep only one unique alert per machine sensor to avoid spamming
-            const keys = new Set();
-            const blended = [...newAlerts, ...prevAlerts];
-            return blended.filter(a => {
-              const key = `${a.machineId}-${a.sensor}`;
-              if (keys.has(key)) return false;
-              keys.add(key);
-              return true;
-            }).slice(0, 10);
-          });
-        }
-
-        return next;
-      });
     };
 
-    const interval = setInterval(simulateData, 1500);
+    fetchData();
+    const interval = setInterval(fetchData, 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedMachineId]);
 
   const ackAlert = (id) => {
     setAlerts(prev => prev.filter(a => a.id !== id));

@@ -5,7 +5,8 @@ function Sidebar({ role, sensors }) {
   // Compute aggregated stats for Manager View
   const activeWarnings = sensorArray.filter(s => s.current >= s.warn && s.current < s.critical).length;
   const activeCriticals = sensorArray.filter(s => s.current >= s.critical).length;
-  const avgTemp = sensorArray.find(s => s.id === "temp")?.current || 70;
+  const primarySensor = sensorArray[0] || { current: 70, name: "TEMPERATURE", unit: "°C", warn: 75, critical: 85 };
+  const primaryVal = primarySensor.current;
 
   let healthScore = 100;
   sensorArray.forEach(s => {
@@ -42,17 +43,17 @@ function Sidebar({ role, sensors }) {
               </div>
             </div>
 
-            {/* Aggregated Temp Core average */}
+            {/* Aggregated Primary Sensor average */}
             <div className="sensor-card fade-in" style={{ animationDelay: "0.05s" }}>
               <div className="sensor-header">
-                <span className="sensor-name">MOTOR TEMP AVG</span>
-                <span className="sensor-unit">°C</span>
+                <span className="sensor-name">{primarySensor.name.toUpperCase()} AVG</span>
+                <span className="sensor-unit">{primarySensor.unit}</span>
               </div>
               <div className="sensor-value">
-                {avgTemp.toFixed(1)}°C
+                {primaryVal.toFixed(1)}{primarySensor.unit}
               </div>
               <div style={{ fontSize: "0.6rem", color: "var(--text-muted)", marginTop: "4px", fontFamily: "var(--font-mono)" }}>
-                {avgTemp >= 85 ? "⚠️ CRITICAL DEVIATION" : avgTemp >= 75 ? "⚠️ WARNING EXCESS" : "🟢 NOMINAL RANGE"}
+                {primaryVal >= primarySensor.critical ? "⚠️ CRITICAL DEVIATION" : primaryVal >= primarySensor.warn ? "⚠️ WARNING EXCESS" : "🟢 NOMINAL RANGE"}
               </div>
             </div>
 

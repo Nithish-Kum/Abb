@@ -1,0 +1,4 @@
+timestamp,temp,pressure,vibration,voltage,current,risk,status
+18:37:58,70.55,80,1.5,185,13,25,NORMAL
+18:38:00,70.58,80,1.5,185,13,25,NORMAL
+18:38:02,70.49,80,1.5,185,13,25,NORMAL
