@@ -23,7 +23,8 @@ function CenterPanel({ role, mode, sensors }) {
   const currentRisk = Math.min(calculatedRisk, 100);
 
   return (
-    <div className="center">
+    <div className="center" style={{ display: "flex", flexDirection: "column", gap: "16px", height: "100%", width: "100%" }}>
+
       {/* MANAGER KPI SUMMARY PANEL */}
       {isManager && (
         <div className="manager-kpi" style={{ display: "grid" }}>
@@ -44,14 +45,14 @@ function CenterPanel({ role, mode, sensors }) {
 
       {/* AI CRITICAL / WARNING PREDICTION HUD BANNER */}
       {(mode.toLowerCase() === "failure" || mode.toLowerCase() === "warning") && (
-        <div className="prediction-banner active">
+        <div className="prediction-banner active" style={{ flexShrink: 0 }}>
           <div className="pred-icon">
             {mode.toLowerCase() === "failure" ? "🔴" : "⚠"}
           </div>
           <div className="pred-content">
             <div className="pred-title">
-              {mode.toLowerCase() === "failure" 
-                ? "AI PREDICTIVE ALERT: MOTOR CASCADE BREAKDOWN ACTIVE" 
+              {mode.toLowerCase() === "failure"
+                ? "AI PREDICTIVE ALERT: MOTOR CASCADE BREAKDOWN ACTIVE"
                 : "AI TELEMETRY WARN: THERMAL DRIFT EXCURSION DETECTED"}
             </div>
             <div className="pred-subtitle">
@@ -61,111 +62,115 @@ function CenterPanel({ role, mode, sensors }) {
         </div>
       )}
 
-      {/* CIRCULAR GAUGES (BONUS REQ) */}
-      <div className="gauge-row" style={{ display: "grid" }}>
-        <Gauge 
-          title="System Risk Score" 
-          value={currentRisk} 
-          max={100} 
-          unit="%" 
-          warnLimit={40} 
-          critLimit={70} 
-        />
-        <Gauge 
-          title="Motor Temp Instrument" 
-          value={tempVal} 
-          max={120} 
-          unit="°C" 
-          warnLimit={sensors.motor.warn} 
-          critLimit={sensors.motor.critical} 
-        />
-      </div>
+      {/* SCROLLABLE MAIN PANEL BODY TO ENSURE GRAPH VISIBILITY WHEN BANNER IS ACTIVE */}
+      <div className="center-body" style={{ flex: 1, display: "flex", flexDirection: "column", gap: "16px", overflowY: "auto" }}>
 
-      {/* REAL-TIME CHARTS GRID */}
-      <div className="chart-grid">
-        <Chart 
-          title="Motor Core Temperature" 
-          value={`${tempVal.toFixed(1)}°C`} 
-          data={sensors.motor.history} 
-          color="var(--red)" 
-          warnVal={sensors.motor.warn} 
-          critVal={sensors.motor.critical} 
-        />
-        <Chart 
-          title="System Main Voltage" 
-          value={`${voltVal.toFixed(1)}V`} 
-          data={sensors.voltage.history} 
-          color="var(--blue)" 
-          warnVal={sensors.voltage.warn} 
-          critVal={sensors.voltage.critical} 
-        />
-        <Chart 
-          title="System Core Pressure" 
-          value={`${pressVal.toFixed(1)} PSI`} 
-          data={sensors.pressure.history} 
-          color="var(--yellow)" 
-          warnVal={sensors.pressure.warn} 
-          critVal={sensors.pressure.critical} 
-        />
-        <Chart 
-          title="Coolant Flow Rate" 
-          value={`${sensors.flow.current.toFixed(2)} L/s`} 
-          data={sensors.flow.history} 
-          color="var(--green)" 
-          warnVal={sensors.flow.warn} 
-          critVal={sensors.flow.critical} 
-        />
-      </div>
-
-      {/* ENGINEER VIEW DIAGNOSTIC LOG TABLE */}
-      {isEngineer && (
-        <div className="eng-section">
-          <div className="gauge-title" style={{ marginBottom: "12px", borderBottom: "none" }}>
-            ◆ SCI-FI DIAGNOSTICS - DETAILED CORE LOG
-          </div>
-          <table className="eng-table">
-            <thead>
-              <tr>
-                <th>SUB-SYSTEM CHANNEL</th>
-                <th>INTEGRITY STATUS</th>
-                <th>OPERATIONAL LOAD</th>
-                <th>LATENCY</th>
-                <th>BASELINE ACCURACY</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Secondary Rotor Shaft</td>
-                <td className="status-good">ONLINE / NORMAL</td>
-                <td>{((vibVal / 3) * 100).toFixed(0)}%</td>
-                <td>12 ms</td>
-                <td>99.98%</td>
-              </tr>
-              <tr>
-                <td>Cooling Liquid Circuit</td>
-                <td className={tempVal > 85 ? "status-bad" : tempVal > 75 ? "status-warn" : "status-good"}>
-                  {tempVal > 85 ? "CRIT OVERHEAT" : tempVal > 75 ? "TEMP WARNING" : "ONLINE / STANDARD"}
-                </td>
-                <td>{((tempVal / 120) * 100).toFixed(0)}%</td>
-                <td>35 ms</td>
-                <td>99.42%</td>
-              </tr>
-              <tr>
-                <td>Fluid Intake Valve</td>
-                <td className={pressVal > 120 ? "status-bad" : "status-good"}>
-                  {pressVal > 120 ? "VALVE OVERPRESSURE" : "ONLINE / NOMINAL"}
-                </td>
-                <td>{((pressVal / 150) * 100).toFixed(0)}%</td>
-                <td>4 ms</td>
-                <td>99.91%</td>
-              </tr>
-            </tbody>
-          </table>
+        {/* CIRCULAR GAUGES (BONUS REQ) */}
+        <div className="gauge-row" style={{ display: "grid" }}>
+          <Gauge
+            title="System Risk Score"
+            value={currentRisk}
+            max={100}
+            unit="%"
+            warnLimit={40}
+            critLimit={70}
+          />
+          <Gauge
+            title="Motor Temp Instrument"
+            value={tempVal}
+            max={120}
+            unit="°C"
+            warnLimit={sensors.motor.warn}
+            critLimit={sensors.motor.critical}
+          />
         </div>
-      )}
 
-      {/* CHRONOLOGICAL EVENT TIMELINE */}
-      <Timeline mode={mode} />
+        {/* REAL-TIME CHARTS GRID */}
+        <div className="chart-grid">
+          <Chart
+            title="Motor Core Temperature"
+            value={`${tempVal.toFixed(1)}°C`}
+            data={sensors.motor.history}
+            color="var(--red)"
+            warnVal={sensors.motor.warn}
+            critVal={sensors.motor.critical}
+          />
+          <Chart
+            title="System Main Voltage"
+            value={`${voltVal.toFixed(1)}V`}
+            data={sensors.voltage.history}
+            color="var(--blue)"
+            warnVal={sensors.voltage.warn}
+            critVal={sensors.voltage.critical}
+          />
+          <Chart
+            title="System Core Pressure"
+            value={`${pressVal.toFixed(1)} PSI`}
+            data={sensors.pressure.history}
+            color="var(--yellow)"
+            warnVal={sensors.pressure.warn}
+            critVal={sensors.pressure.critical}
+          />
+          <Chart
+            title="Coolant Flow Rate"
+            value={`${sensors.flow.current.toFixed(2)} L/s`}
+            data={sensors.flow.history}
+            color="var(--green)"
+            warnVal={sensors.flow.warn}
+            critVal={sensors.flow.critical}
+          />
+        </div>
+
+        {/* ENGINEER VIEW DIAGNOSTIC LOG TABLE */}
+        {isEngineer && (
+          <div className="eng-section">
+            <div className="gauge-title" style={{ marginBottom: "12px", borderBottom: "none" }}>
+              ◆ SCI-FI DIAGNOSTICS - DETAILED CORE LOG
+            </div>
+            <table className="eng-table">
+              <thead>
+                <tr>
+                  <th>SUB-SYSTEM CHANNEL</th>
+                  <th>INTEGRITY STATUS</th>
+                  <th>OPERATIONAL LOAD</th>
+                  <th>LATENCY</th>
+                  <th>BASELINE ACCURACY</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Secondary Rotor Shaft</td>
+                  <td className="status-good">ONLINE / NORMAL</td>
+                  <td>{((vibVal / 3) * 100).toFixed(0)}%</td>
+                  <td>12 ms</td>
+                  <td>99.98%</td>
+                </tr>
+                <tr>
+                  <td>Cooling Liquid Circuit</td>
+                  <td className={tempVal > 85 ? "status-bad" : tempVal > 75 ? "status-warn" : "status-good"}>
+                    {tempVal > 85 ? "CRIT OVERHEAT" : tempVal > 75 ? "TEMP WARNING" : "ONLINE / STANDARD"}
+                  </td>
+                  <td>{((tempVal / 120) * 100).toFixed(0)}%</td>
+                  <td>35 ms</td>
+                  <td>99.42%</td>
+                </tr>
+                <tr>
+                  <td>Fluid Intake Valve</td>
+                  <td className={pressVal > 120 ? "status-bad" : "status-good"}>
+                    {pressVal > 120 ? "VALVE OVERPRESSURE" : "ONLINE / NOMINAL"}
+                  </td>
+                  <td>{((pressVal / 150) * 100).toFixed(0)}%</td>
+                  <td>4 ms</td>
+                  <td>99.91%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* CHRONOLOGICAL EVENT TIMELINE */}
+        <Timeline mode={mode} />
+      </div>
     </div>
   );
 }

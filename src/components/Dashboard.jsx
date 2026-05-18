@@ -116,7 +116,7 @@ function Dashboard({ role }) {
   const playWarningBeep = () => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      
+
       const triggerBeep = (delay) => {
         if (!ctx || ctx.state === "closed") return;
         const osc = ctx.createOscillator();
@@ -144,7 +144,7 @@ function Dashboard({ role }) {
       setTimeout(() => {
         try {
           ctx.close();
-        } catch (e) {}
+        } catch (e) { }
       }, 1500);
     } catch (e) {
       console.warn("Web Audio warning synthesis failed:", e);
@@ -192,7 +192,7 @@ function Dashboard({ role }) {
     if (failureCtxRef.current) {
       try {
         failureCtxRef.current.close();
-      } catch (e) {}
+      } catch (e) { }
       failureCtxRef.current = null;
     }
   };
@@ -211,9 +211,9 @@ function Dashboard({ role }) {
   const shouldFocus = dataRisk >= 80;
 
   return (
-    <div 
-      id="app" 
-      style={{ display: "block", minHeight: "100vh" }} 
+    <div
+      id="app"
+      style={{ display: "block", minHeight: "100vh" }}
       className={`dashboard ${getThemeClass()} ${mode === "failure" ? "emergency-mode" : ""}`}
     >
       {/* 🔴 Screen Failure overlay (pulsing red low opacity filter) */}
@@ -232,18 +232,18 @@ function Dashboard({ role }) {
       {/* SCADA UI Layout */}
       <Topbar role={role} mode={mode} />
       <div className="main">
-        <Sidebar 
-          role={role} 
-          sensors={sensors} 
+        <Sidebar
+          role={role}
+          sensors={sensors}
         />
-        <CenterPanel 
-          role={role} 
-          mode={mode} 
-          sensors={sensors} 
+        <CenterPanel
+          role={role}
+          mode={mode}
+          sensors={sensors}
         />
-        <AlertsPanel 
-          mode={mode} 
-          stormActive={false} 
+        <AlertsPanel
+          mode={mode}
+          stormActive={false}
         />
       </div>
     </div>
