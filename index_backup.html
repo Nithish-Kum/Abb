@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS HMI — AI Control Interface</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@300;400;600&family=Exo+2:wght@300;400;600&display=swap');
+
+:root {
+  --bg: #050a0f;
+  --bg2: #0a1520;
+  --panel: #0d1e2e;
+  --panel2: #112233;
+  --border: #1a3a5c;
+  --accent: #00d4ff;
+  --accent2: #00ff88;
+  --warn: #ff9500;
+  --danger: #ff2d55;
+  --text: #c8e6ff;
+  --text2: #6a9fc0;
+  --glow: 0 0 20px rgba(0,212,255,0.4);
+  --glow2: 0 0 20px rgba(0,255,136,0.4);
+  --glow-danger: 0 0 20px rgba(255,45,85,0.5);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Exo 2', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* GRID BG */
+body::before {
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events:none;
+  z-index:0;
+}
+
+/* LOGIN SCREEN */
+#loginScreen {
+  position:fixed; inset:0; z-index:100;
+  background: var(--bg);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:40px;
+}
+
+#loginScreen::before {
+  content:'';
+  position:absolute; inset:0;
+  background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(0,212,255,0.06), transparent);
+}
+
+.login-logo {
+  text-align:center;
+  position:relative;
+}
+
+.login-logo h1 {
+  font-family:'Orbitron',sans-serif;
+  font-size:clamp(2rem,6vw,4rem);
+  font-weight:900;
+  letter-spacing:0.2em;
+  background: linear-gradient(135deg, #00d4ff, #00ff88);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+  text-shadow:none;
+  filter: drop-shadow(0 0 30px rgba(0,212,255,0.5));
+}
+
+.login-logo p {
+  font-family:'JetBrains Mono',monospace;
+  color:var(--text2);
+  font-size:0.75rem;
+  letter-spacing:0.3em;
+  margin-top:8px;
+}
+
+.role-label {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.7rem;
+  letter-spacing:0.2em;
+  color:var(--text2);
+  text-transform:uppercase;
+}
+
+.role-btns {
+  display:flex; gap:20px; flex-wrap:wrap; justify-content:center;
+}
+
+.role-btn {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 24px 36px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.15em;
+  transition: all 0.3s;
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  min-width:140px;
+  position:relative;
+  overflow:hidden;
+}
+
+.role-btn::before {
+  content:'';
+  position:absolute; inset:0;
+  background: linear-gradient(135deg, transparent, rgba(0,212,255,0.05));
+  opacity:0;
+  transition:opacity 0.3s;
+}
+
+.role-btn:hover::before { opacity:1; }
+.role-btn:hover {
+  border-color: var(--accent);
+  box-shadow: var(--glow), inset 0 0 20px rgba(0,212,255,0.05);
+  transform: translateY(-2px);
+}
+
+.role-btn .role-icon { font-size:2rem; }
+.role-btn .role-name { font-size:0.75rem; }
+.role-btn .role-desc {
+  font-family:'Exo 2',sans-serif;
+  font-size:0.65rem;
+  color:var(--text2);
+  font-weight:300;
+  letter-spacing:0.05em;
+}
+
+/* MAIN APP */
+#app { display:none; position:relative; z-index:1; }
+
+/* TOP BAR */
+.topbar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 12px 24px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  position:sticky; top:0; z-index:50;
+}
+
+.topbar-left { display:flex; align-items:center; gap:16px; }
+
+.logo-small {
+  font-family:'Orbitron',sans-serif;
+  font-size:1rem;
+  font-weight:900;
+  letter-spacing:0.15em;
+  background: linear-gradient(135deg, #00d4ff, #00ff88);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+
+.sys-status {
+  display:flex; align-items:center; gap:8px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.7rem;
+}
+
+.status-dot {
+  width:8px; height:8px; border-radius:50%;
+  background:var(--accent2);
+  box-shadow: 0 0 8px var(--accent2);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,100%{opacity:1;} 50%{opacity:0.4;}
+}
+
+.topbar-center {
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+}
+
+.sys-mode {
+  font-family:'Orbitron',sans-serif;
+  font-size:0.85rem;
+  font-weight:700;
+  letter-spacing:0.15em;
+  padding: 4px 16px;
+  border-radius:4px;
+  transition: all 0.5s;
+}
+
+.mode-normal { color:var(--accent2); border:1px solid var(--accent2); background:rgba(0,255,136,0.05); }
+.mode-warning { color:var(--warn); border:1px solid var(--warn); background:rgba(255,149,0,0.05); }
+.mode-failure { color:var(--danger); border:1px solid var(--danger); background:rgba(255,45,85,0.08); animation:flashBorder 0.8s infinite; }
+.mode-recovery { color:#bf5fff; border:1px solid #bf5fff; background:rgba(191,95,255,0.05); }
+
+@keyframes flashBorder {
+  0%,100%{box-shadow:0 0 10px rgba(255,45,85,0.5);}
+  50%{box-shadow:0 0 20px rgba(255,45,85,0.8);}
+}
+
+.topbar-right {
+  display:flex; align-items:center; gap:16px;
+  font-family:'JetBrains Mono',monospace; font-size:0.7rem;
+}
+
+.role-badge {
+  background: linear-gradient(135deg, rgba(0,212,255,0.1), rgba(0,255,136,0.1));
+  border: 1px solid var(--accent);
+  padding: 4px 12px;
+  border-radius:4px;
+  font-size:0.65rem;
+  letter-spacing:0.1em;
+  color:var(--accent);
+}
+
+.clock { color:var(--text2); }
+
+.logout-btn {
+  background:none; border:1px solid var(--border);
+  color:var(--text2); padding:4px 12px;
+  border-radius:4px; cursor:pointer;
+  font-family:'JetBrains Mono',monospace; font-size:0.65rem;
+  letter-spacing:0.1em;
+  transition:all 0.3s;
+}
+.logout-btn:hover { border-color:var(--danger); color:var(--danger); }
+
+/* MAIN LAYOUT */
+.main {
+  display:grid;
+  grid-template-columns: 280px 1fr 300px;
+  gap:0;
+  min-height: calc(100vh - 54px);
+}
+
+/* SIDEBAR */
+.sidebar {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 20px;
+  display:flex; flex-direction:column; gap:20px;
+  overflow-y:auto;
+}
+
+.sidebar-section h3 {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.6rem;
+  letter-spacing:0.2em;
+  color:var(--text2);
+  text-transform:uppercase;
+  margin-bottom:12px;
+  padding-bottom:6px;
+  border-bottom:1px solid var(--border);
+}
+
+/* SENSOR CARDS */
+.sensor-card {
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:12px;
+  margin-bottom:10px;
+  transition:all 0.3s;
+  cursor:pointer;
+  position:relative;
+  overflow:hidden;
+}
+
+.sensor-card::before {
+  content:'';
+  position:absolute; left:0; top:0; bottom:0; width:3px;
+  background:var(--accent2);
+  transition:background 0.3s;
+}
+
+.sensor-card.warn::before { background:var(--warn); }
+.sensor-card.critical::before { background:var(--danger); }
+
+.sensor-card:hover {
+  border-color:var(--accent);
+  box-shadow:var(--glow);
+}
+
+.sensor-header {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:6px;
+}
+
+.sensor-name {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.65rem;
+  letter-spacing:0.1em;
+  color:var(--text2);
+}
+
+.sensor-value {
+  font-family:'Orbitron',monospace;
+  font-size:1.4rem;
+  font-weight:700;
+  color:var(--accent);
+  transition:color 0.3s;
+}
+
+.sensor-card.warn .sensor-value { color:var(--warn); }
+.sensor-card.critical .sensor-value { color:var(--danger); }
+
+.sensor-unit {
+  font-size:0.6rem;
+  color:var(--text2);
+  font-family:'JetBrains Mono',monospace;
+}
+
+/* SPARKLINE */
+.sparkline {
+  height:30px;
+  margin-top:8px;
+  display:flex; align-items:flex-end; gap:2px;
+}
+
+.spark-bar {
+  flex:1;
+  border-radius:1px;
+  background:rgba(0,212,255,0.3);
+  transition:height 0.5s, background 0.3s;
+  min-height:2px;
+}
+
+.sensor-card.warn .spark-bar { background:rgba(255,149,0,0.3); }
+.sensor-card.critical .spark-bar { background:rgba(255,45,85,0.3); }
+
+/* CENTER PANEL */
+.center {
+  padding:20px;
+  display:flex; flex-direction:column; gap:20px;
+  overflow-y:auto;
+}
+
+/* AI PREDICTION BANNER */
+.prediction-banner {
+  background: linear-gradient(135deg, rgba(255,45,85,0.1), rgba(255,149,0,0.08));
+  border: 1px solid rgba(255,45,85,0.4);
+  border-radius:12px;
+  padding:16px 20px;
+  display:none; align-items:center; gap:16px;
+  animation:flashBorder 1s infinite;
+}
+
+.prediction-banner.active { display:flex; }
+
+.pred-icon { font-size:2rem; }
+
+.pred-content { flex:1; }
+.pred-title {
+  font-family:'Orbitron',sans-serif;
+  font-size:0.85rem;
+  font-weight:700;
+  color:var(--danger);
+  letter-spacing:0.1em;
+}
+.pred-subtitle {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.7rem;
+  color:var(--warn);
+  margin-top:4px;
+}
+
+.pred-timer {
+  text-align:center;
+}
+
+.timer-value {
+  font-family:'Orbitron',sans-serif;
+  font-size:2rem;
+  font-weight:900;
+  color:var(--danger);
+  text-shadow: 0 0 20px rgba(255,45,85,0.8);
+  display:block;
+  animation:timerPulse 1s infinite;
+}
+
+@keyframes timerPulse {
+  0%,100%{transform:scale(1);}
+  50%{transform:scale(1.05);}
+}
+
+.timer-label {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.6rem;
+  color:var(--text2);
+  letter-spacing:0.1em;
+}
+
+.confidence-badge {
+  background:rgba(0,212,255,0.1);
+  border:1px solid var(--accent);
+  padding:6px 12px;
+  border-radius:6px;
+  text-align:center;
+}
+.conf-val {
+  font-family:'Orbitron',sans-serif;
+  font-size:1.2rem;
+  font-weight:700;
+  color:var(--accent);
+  display:block;
+}
+.conf-label {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.55rem;
+  color:var(--text2);
+  letter-spacing:0.1em;
+}
+
+/* RISK GAUGE */
+.gauge-row {
+  display:grid; grid-template-columns:1fr 1fr; gap:16px;
+}
+
+.gauge-card {
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:16px;
+  text-align:center;
+}
+
+.gauge-title {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.6rem;
+  letter-spacing:0.15em;
+  color:var(--text2);
+  text-transform:uppercase;
+  margin-bottom:12px;
+}
+
+.gauge-svg { width:100%; max-width:140px; }
+
+/* MAIN CHARTS */
+.chart-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:16px;
+}
+
+.chart-card {
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:16px;
+}
+
+.chart-header {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:12px;
+}
+
+.chart-title {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.65rem;
+  letter-spacing:0.1em;
+  color:var(--text2);
+  text-transform:uppercase;
+}
+
+.chart-val {
+  font-family:'Orbitron',sans-serif;
+  font-size:1.1rem;
+  font-weight:700;
+  color:var(--accent);
+}
+
+canvas.chart { width:100%!important; height:80px!important; }
+
+/* TIMELINE */
+.timeline-card {
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:16px;
+}
+
+.timeline-title {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.6rem;
+  letter-spacing:0.15em;
+  color:var(--text2);
+  text-transform:uppercase;
+  margin-bottom:12px;
+}
+
+.timeline {
+  display:flex; flex-direction:column; gap:8px;
+  max-height:160px; overflow-y:auto;
+}
+
+.tl-item {
+  display:flex; gap:12px; align-items:flex-start;
+  animation:slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from{opacity:0; transform:translateX(-10px);}
+  to{opacity:1; transform:translateX(0);}
+}
+
+.tl-dot {
+  width:8px; height:8px; border-radius:50%;
+  margin-top:4px; flex-shrink:0;
+}
+
+.tl-content {
+  flex:1;
+}
+
+.tl-msg {
+  font-size:0.72rem;
+  color:var(--text);
+}
+
+.tl-time {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.58rem;
+  color:var(--text2);
+}
+
+/* RIGHT PANEL — ALERTS */
+.alerts-panel {
+  background:var(--panel);
+  border-left:1px solid var(--border);
+  padding:20px;
+  display:flex; flex-direction:column; gap:16px;
+  overflow-y:auto;
+}
+
+.alerts-header {
+  display:flex; justify-content:space-between; align-items:center;
+}
+
+.alerts-title {
+  font-family:'Orbitron',sans-serif;
+  font-size:0.8rem;
+  font-weight:700;
+  letter-spacing:0.15em;
+  color:var(--text);
+}
+
+.alert-count {
+  background:var(--danger);
+  color:white;
+  border-radius:50%;
+  width:22px; height:22px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Orbitron',sans-serif;
+  font-size:0.65rem;
+  font-weight:700;
+  box-shadow: 0 0 10px rgba(255,45,85,0.5);
+}
+
+/* AI INSIGHT BOX */
+.ai-insight {
+  background: linear-gradient(135deg, rgba(0,212,255,0.06), rgba(0,255,136,0.04));
+  border:1px solid rgba(0,212,255,0.2);
+  border-radius:10px;
+  padding:14px;
+}
+
+.ai-insight-header {
+  display:flex; align-items:center; gap:8px; margin-bottom:8px;
+}
+
+.ai-chip {
+  background:var(--accent);
+  color:var(--bg);
+  font-family:'Orbitron',sans-serif;
+  font-size:0.55rem;
+  font-weight:900;
+  letter-spacing:0.1em;
+  padding:2px 8px;
+  border-radius:3px;
+}
+
+.ai-insight-text {
+  font-size:0.75rem;
+  color:var(--text);
+  line-height:1.5;
+}
+
+.ai-insight-conf {
+  margin-top:8px;
+  display:flex; align-items:center; gap:6px;
+}
+
+.conf-bar-bg {
+  flex:1; height:4px;
+  background:var(--border);
+  border-radius:2px;
+  overflow:hidden;
+}
+
+.conf-bar-fill {
+  height:100%;
+  background:linear-gradient(90deg, var(--accent2), var(--accent));
+  border-radius:2px;
+  transition:width 1s;
+}
+
+.conf-pct {
+  font-family:'Orbitron',sans-serif;
+  font-size:0.65rem;
+  color:var(--accent);
+  font-weight:700;
+}
+
+/* ALERT ITEMS */
+.alert-item {
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:12px;
+  transition:all 0.3s;
+  position:relative;
+  overflow:hidden;
+  animation:slideIn 0.3s ease;
+}
+
+.alert-item::before {
+  content:'';
+  position:absolute; left:0; top:0; bottom:0; width:3px;
+}
+
+.alert-item.critical::before { background:var(--danger); }
+.alert-item.warning::before { background:var(--warn); }
+.alert-item.info::before { background:var(--accent); }
+
+.alert-item.critical { border-color:rgba(255,45,85,0.3); }
+
+.alert-tag {
+  font-family:'Orbitron',sans-serif;
+  font-size:0.55rem;
+  font-weight:700;
+  letter-spacing:0.1em;
+  padding:2px 8px;
+  border-radius:3px;
+  display:inline-block;
+  margin-bottom:6px;
+}
+
+.tag-critical { background:rgba(255,45,85,0.2); color:var(--danger); border:1px solid rgba(255,45,85,0.3); }
+.tag-warning { background:rgba(255,149,0,0.2); color:var(--warn); border:1px solid rgba(255,149,0,0.3); }
+.tag-info { background:rgba(0,212,255,0.1); color:var(--accent); border:1px solid rgba(0,212,255,0.2); }
+
+.alert-msg {
+  font-size:0.75rem;
+  color:var(--text);
+  margin-bottom:8px;
+  line-height:1.4;
+}
+
+.alert-footer {
+  display:flex; justify-content:space-between; align-items:center;
+}
+
+.alert-time {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.6rem;
+  color:var(--text2);
+}
+
+.ack-btn {
+  background:none;
+  border:1px solid var(--accent2);
+  color:var(--accent2);
+  padding:3px 10px;
+  border-radius:4px;
+  cursor:pointer;
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.58rem;
+  letter-spacing:0.05em;
+  transition:all 0.3s;
+}
+
+.ack-btn:hover {
+  background:rgba(0,255,136,0.1);
+  box-shadow:var(--glow2);
+}
+
+/* SIM CONTROLS */
+.sim-panel {
+  margin-top:auto;
+  padding-top:16px;
+  border-top:1px solid var(--border);
+}
+
+.sim-title {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.6rem;
+  letter-spacing:0.15em;
+  color:var(--text2);
+  text-transform:uppercase;
+  margin-bottom:10px;
+}
+
+.sim-btns {
+  display:grid; grid-template-columns:1fr 1fr; gap:8px;
+}
+
+.sim-btn {
+  padding:8px;
+  border-radius:6px;
+  border:1px solid var(--border);
+  background:var(--bg2);
+  color:var(--text2);
+  cursor:pointer;
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.6rem;
+  letter-spacing:0.05em;
+  transition:all 0.3s;
+}
+
+.sim-btn:hover { transform:scale(1.02); }
+.sim-btn.normal:hover { border-color:var(--accent2); color:var(--accent2); }
+.sim-btn.warning:hover { border-color:var(--warn); color:var(--warn); }
+.sim-btn.failure:hover { border-color:var(--danger); color:var(--danger); }
+.sim-btn.storm:hover { border-color:#bf5fff; color:#bf5fff; }
+
+/* VOICE INDICATOR */
+.voice-indicator {
+  position:fixed;
+  bottom:20px; right:20px;
+  background:rgba(255,45,85,0.9);
+  color:white;
+  padding:10px 18px;
+  border-radius:30px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.7rem;
+  display:none;
+  align-items:center;
+  gap:8px;
+  z-index:200;
+  box-shadow:0 4px 20px rgba(255,45,85,0.5);
+  animation:slideIn 0.3s;
+}
+
+.voice-indicator.active { display:flex; }
+
+/* ROLE-SPECIFIC VIEWS */
+.manager-kpi {
+  display:none;
+  grid-template-columns:repeat(3,1fr);
+  gap:16px;
+  margin-bottom:20px;
+}
+
+.kpi-card {
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:20px;
+  text-align:center;
+}
+
+.kpi-val {
+  font-family:'Orbitron',sans-serif;
+  font-size:2rem;
+  font-weight:900;
+  color:var(--accent);
+  display:block;
+}
+
+.kpi-label {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.6rem;
+  color:var(--text2);
+  letter-spacing:0.1em;
+  margin-top:4px;
+}
+
+/* STORM OVERLAY */
+.storm-badge {
+  position:fixed; top:70px; left:50%; transform:translateX(-50%);
+  background:rgba(191,95,255,0.9);
+  color:white;
+  padding:8px 20px;
+  border-radius:20px;
+  font-family:'Orbitron',sans-serif;
+  font-size:0.7rem;
+  font-weight:700;
+  letter-spacing:0.1em;
+  z-index:200;
+  display:none;
+  animation:slideIn 0.3s;
+}
+
+.storm-badge.active { display:block; }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+::-webkit-scrollbar-thumb:hover { background:var(--accent); }
+
+/* ENGINEER EXTRA */
+.eng-section {
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:16px;
+}
+
+.eng-table {
+  width:100%;
+  border-collapse:collapse;
+  font-size:0.72rem;
+  font-family:'JetBrains Mono',monospace;
+}
+
+.eng-table th {
+  color:var(--text2);
+  font-size:0.6rem;
+  letter-spacing:0.1em;
+  text-align:left;
+  padding:6px 8px;
+  border-bottom:1px solid var(--border);
+}
+
+.eng-table td {
+  padding:8px;
+  border-bottom:1px solid rgba(26,58,92,0.3);
+  color:var(--text);
+}
+
+.eng-table tr:last-child td { border-bottom:none; }
+
+.status-good { color:var(--accent2); }
+.status-warn { color:var(--warn); }
+.status-bad { color:var(--danger); }
+
+/* ANIMATED ENTRY */
+.fade-in {
+  animation: fadeInUp 0.6s ease forwards;
+  opacity:0;
+}
+
+@keyframes fadeInUp {
+  from{opacity:0; transform:translateY(20px);}
+  to{opacity:1; transform:translateY(0);}
+}
+
+/* EMERGENCY MODE */
+body.emergency-mode .gauge-row,
+body.emergency-mode .chart-grid,
+body.emergency-mode .eng-section {
+  display:none!important;
+}
+
+body.emergency-mode .prediction-banner {
+  display:flex!important;
+}
+
+/* Responsive */
+@media(max-width:1100px) {
+  .main { grid-template-columns: 240px 1fr 260px; }
+  .chart-grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-logo">
+    <h1>NEXUS HMI</h1>
+    <p>AI-POWERED INDUSTRIAL CONTROL INTERFACE v2.0</p>
+  </div>
+  <div class="role-label">SELECT YOUR ROLE TO CONTINUE</div>
+  <div class="role-btns">
+    <button class="role-btn" onclick="login('operator')">
+      <span class="role-icon">🧑‍💼</span>
+      <span class="role-name">OPERATOR</span>
+      <span class="role-desc">Critical alerts &amp; live status</span>
+    </button>
+    <button class="role-btn" onclick="login('engineer')">
+      <span class="role-icon">⚙️</span>
+      <span class="role-name">ENGINEER</span>
+      <span class="role-desc">Full dashboard &amp; diagnostics</span>
+    </button>
+    <button class="role-btn" onclick="login('manager')">
+      <span class="role-icon">📊</span>
+      <span class="role-name">MANAGER</span>
+      <span class="role-desc">Reports &amp; KPI summary</span>
+    </button>
+  </div>
+</div>
+
+<!-- STORM BADGE -->
+<div class="storm-badge" id="stormBadge">⚡ ALARM STORM DETECTED — AI FILTERING ACTIVE</div>
+
+<!-- VOICE INDICATOR -->
+<div class="voice-indicator" id="voiceIndicator">
+  🔊 <span id="voiceText">Critical alert detected</span>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo-small">NEXUS</div>
+      <div class="sys-status">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">SYSTEM ONLINE</span>
+      </div>
+    </div>
+    <div class="topbar-center">
+      <div class="sys-mode mode-normal" id="sysMode">◆ NORMAL OPERATION ◆</div>
+    </div>
+    <div class="topbar-right">
+      <div class="role-badge" id="roleBadge">OPERATOR</div>
+      <div class="clock" id="clock">--:--:--</div>
+      <button class="logout-btn" onclick="logout()">⏏ EXIT</button>
+    </div>
+  </div>
+
+  <!-- MAIN LAYOUT -->
+  <div class="main">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-section">
+        <h3>Live Sensors</h3>
+        <div id="sensorCards"></div>
+      </div>
+
+      <div class="sidebar-section" id="simSection">
+        <div class="sim-panel">
+          <div class="sim-title">⚡ Simulation Controls</div>
+          <div class="sim-btns">
+            <button class="sim-btn normal" onclick="setMode('normal')">✅ NORMAL</button>
+            <button class="sim-btn warning" onclick="setMode('warning')">⚠️ WARNING</button>
+            <button class="sim-btn failure" onclick="setMode('failure')">🔴 FAILURE</button>
+            <button class="sim-btn storm" onclick="triggerStorm()">⚡ STORM</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER -->
+    <div class="center" id="center">
+
+      <!-- Manager KPIs -->
+      <div class="manager-kpi" id="managerKpi">
+        <div class="kpi-card fade-in">
+          <span class="kpi-val" id="kpiUptime">99.7%</span>
+          <div class="kpi-label">SYSTEM UPTIME</div>
+        </div>
+        <div class="kpi-card fade-in" style="animation-delay:0.1s">
+          <span class="kpi-val" id="kpiAlerts">247</span>
+          <div class="kpi-label">ALERTS TODAY</div>
+        </div>
+        <div class="kpi-card fade-in" style="animation-delay:0.2s">
+          <span class="kpi-val" id="kpiFiltered">94%</span>
+          <div class="kpi-label">AI FILTERED</div>
+        </div>
+      </div>
+
+      <!-- Prediction Banner -->
+      <div class="prediction-banner" id="predBanner">
+        <div class="pred-icon">🔴</div>
+        <div class="pred-content">
+          <div class="pred-title">⚠ AI PREDICTS IMMINENT FAILURE</div>
+          <div class="pred-subtitle" id="predMsg">Motor temperature exceeding safe threshold — cascade risk detected</div>
+        </div>
+        <div class="pred-timer">
+          <span class="timer-value" id="timerVal">00:00</span>
+          <div class="timer-label">TIME TO FAILURE</div>
+        </div>
+        <div class="confidence-badge">
+          <span class="conf-val" id="predConf">94%</span>
+          <div class="conf-label">CONFIDENCE</div>
+        </div>
+      </div>
+
+      <!-- Gauge Row -->
+      <div class="gauge-row" id="gaugeRow">
+        <div class="gauge-card fade-in">
+          <div class="gauge-title">System Risk Score</div>
+          <svg class="gauge-svg" viewBox="0 0 140 80" id="riskGaugeSvg">
+            <defs>
+              <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#00ff88"/>
+                <stop offset="50%" style="stop-color:#ff9500"/>
+                <stop offset="100%" style="stop-color:#ff2d55"/>
+              </linearGradient>
+            </defs>
+            <path d="M 10 75 A 60 60 0 0 1 130 75" fill="none" stroke="#1a3a5c" stroke-width="10" stroke-linecap="round"/>
+            <path d="M 10 75 A 60 60 0 0 1 130 75" fill="none" stroke="url(#gaugeGrad)" stroke-width="10" stroke-linecap="round" stroke-dasharray="188" stroke-dashoffset="141" id="gaugeFill" style="transition:stroke-dashoffset 1s"/>
+            <text x="70" y="72" text-anchor="middle" font-family="Orbitron" font-size="18" fill="#00d4ff" font-weight="700" id="gaugeVal">25</text>
+            <text x="70" y="82" text-anchor="middle" font-family="JetBrains Mono" font-size="7" fill="#6a9fc0">/100 RISK</text>
+          </svg>
+        </div>
+        <div class="gauge-card fade-in" style="animation-delay:0.1s" id="engOnlyGauge">
+          <div class="gauge-title">AI Confidence — Current Read</div>
+          <svg class="gauge-svg" viewBox="0 0 140 80">
+            <path d="M 10 75 A 60 60 0 0 1 130 75" fill="none" stroke="#1a3a5c" stroke-width="10" stroke-linecap="round"/>
+            <path d="M 10 75 A 60 60 0 0 1 130 75" fill="none" stroke="#00d4ff" stroke-width="10" stroke-linecap="round" stroke-dasharray="188" stroke-dashoffset="28" id="confGaugeFill" style="transition:stroke-dashoffset 1s"/>
+            <text x="70" y="72" text-anchor="middle" font-family="Orbitron" font-size="18" fill="#00ff88" font-weight="700" id="confGaugeVal">85%</text>
+            <text x="70" y="82" text-anchor="middle" font-family="JetBrains Mono" font-size="7" fill="#6a9fc0">AI CONFIDENCE</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="chart-grid" id="chartGrid">
+        <div class="chart-card fade-in">
+          <div class="chart-header">
+            <div class="chart-title">Motor Temperature</div>
+            <div class="chart-val" id="motorVal">72°C</div>
+          </div>
+          <canvas id="motorChart" class="chart"></canvas>
+        </div>
+        <div class="chart-card fade-in" style="animation-delay:0.1s">
+          <div class="chart-header">
+            <div class="chart-title">System Voltage</div>
+            <div class="chart-val" id="voltVal">231V</div>
+          </div>
+          <canvas id="voltChart" class="chart"></canvas>
+        </div>
+        <div class="chart-card fade-in" style="animation-delay:0.15s">
+          <div class="chart-header">
+            <div class="chart-title">Pressure (PSI)</div>
+            <div class="chart-val" id="pressVal">82 PSI</div>
+          </div>
+          <canvas id="pressChart" class="chart"></canvas>
+        </div>
+        <div class="chart-card fade-in" style="animation-delay:0.2s">
+          <div class="chart-header">
+            <div class="chart-title">Flow Rate</div>
+            <div class="chart-val" id="flowVal">4.2 L/s</div>
+          </div>
+          <canvas id="flowChart" class="chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Engineer Table -->
+      <div class="eng-section" id="engSection" style="display:none">
+        <div class="gauge-title" style="margin-bottom:12px">◆ SYSTEM DIAGNOSTICS — ENGINEER VIEW</div>
+        <table class="eng-table">
+          <thead>
+            <tr>
+              <th>COMPONENT</th>
+              <th>STATUS</th>
+              <th>LOAD</th>
+              <th>LAST CHECK</th>
+              <th>UPTIME</th>
+            </tr>
+          </thead>
+          <tbody id="engTable"></tbody>
+        </table>
+      </div>
+
+      <!-- Timeline -->
+      <div class="timeline-card fade-in">
+        <div class="timeline-title">◆ Event Timeline</div>
+        <div class="timeline" id="timeline"></div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: ALERTS -->
+    <div class="alerts-panel">
+      <div class="alerts-header">
+        <div class="alerts-title">AI ALERTS</div>
+        <div class="alert-count" id="alertCount">0</div>
+      </div>
+
+      <!-- AI Insight -->
+      <div class="ai-insight" id="aiInsight">
+        <div class="ai-insight-header">
+          <div class="ai-chip">AI</div>
+          <span style="font-size:0.65rem;color:var(--text2);font-family:'JetBrains Mono',monospace;letter-spacing:0.05em">LIVE INSIGHT</span>
+        </div>
+        <div class="ai-insight-text" id="aiInsightText">System operating within normal parameters. No anomalies detected in sensor patterns.</div>
+        <div class="ai-insight-conf">
+          <div class="conf-bar-bg">
+            <div class="conf-bar-fill" id="confBar" style="width:85%"></div>
+          </div>
+          <div class="conf-pct" id="confPct">85%</div>
+        </div>
+      </div>
+
+      <!-- Alert List -->
+      <div id="alertList" style="display:flex;flex-direction:column;gap:10px;"></div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ====== STATE ======
+let currentRole = 'operator';
+let currentMode = 'normal';
+let predTimer = 0;
+let predInterval = null;
+let sensorData = {};
+let charts = {};
+let alertIdCounter = 0;
+let stormActive = false;
+
+const sensors = [
+  { id:'motor', name:'MOTOR TEMP', value:72, unit:'°C', max:120, warn:85, critical:100 },
+  { id:'voltage', name:'VOLTAGE', value:231, unit:'V', max:250, warn:245, critical:248 },
+  { id:'pressure', name:'PRESSURE', value:82, unit:'PSI', max:150, warn:120, critical:140 },
+  { id:'flow', name:'FLOW RATE', value:4.2, unit:'L/s', max:10, warn:8, critical:9 },
+  { id:'vibration', name:'VIBRATION', value:0.3, unit:'g', max:5, warn:3, critical:4 },
+  { id:'current', name:'CURRENT', value:14.2, unit:'A', max:30, warn:25, critical:28 },
+];
+
+const engineerComponents = [
+  { name:'Main Motor', status:'ONLINE', load:'68%', check:'2 min ago', uptime:'99.7%' },
+  { name:'Cooling System', status:'ONLINE', load:'45%', check:'1 min ago', uptime:'100%' },
+  { name:'Pressure Valve', status:'WARNING', load:'82%', check:'30 sec ago', uptime:'98.1%' },
+  { name:'Flow Sensor A', status:'ONLINE', load:'41%', check:'1 min ago', uptime:'99.9%' },
+  { name:'Vibration Monitor', status:'ONLINE', load:'12%', check:'45 sec ago', uptime:'100%' },
+  { name:'Power Supply', status:'ONLINE', load:'71%', check:'2 min ago', uptime:'99.5%' },
+];
+
+const aiInsights = {
+  normal: [
+    { text:'All systems operating within safe parameters. Sensor readings stable. No anomalies detected in last 5 minutes.', conf:91 },
+    { text:'Motor temperature trending normally. Vibration patterns consistent with baseline. System efficiency at 94%.', conf:88 },
+  ],
+  warning: [
+    { text:'⚠ Elevated motor temperature detected. Pattern suggests potential cooling system degradation. Recommend inspection within 10 minutes.', conf:86 },
+    { text:'⚠ Pressure fluctuations above normal range. AI detects 73% probability of valve blockage. Initiate diagnostic protocol.', conf:79 },
+  ],
+  failure: [
+    { text:'🔴 CRITICAL: Motor temperature cascade failure imminent. AI confidence 94%. Emergency shutdown protocol recommended immediately.', conf:94 },
+    { text:'🔴 Multiple sensor anomalies correlating to system failure pattern. Historical match: 96% similar to Incident #2023-11-04.', conf:96 },
+  ],
+  recovery: [
+    { text:'✅ System entering recovery phase. Temperature dropping at expected rate. ETA to stable: ~8 minutes.', conf:89 },
+  ]
+};
+
+const modeAlerts = {
+  normal: [],
+  warning: [
+    { type:'warning', msg:'Motor temperature at 91°C — approaching critical threshold', sensor:'Motor Temp' },
+    { type:'info', msg:'Cooling fan efficiency reduced by 12% — scheduled maintenance due', sensor:'Cooling' },
+  ],
+  failure: [
+    { type:'critical', msg:'CRITICAL: Motor temperature 108°C — EMERGENCY SHUTDOWN RISK', sensor:'Motor Temp' },
+    { type:'critical', msg:'Pressure valve failure detected — system overpressure', sensor:'Pressure' },
+    { type:'warning', msg:'Vibration exceeds safe limit — mechanical integrity at risk', sensor:'Vibration' },
+  ],
+  recovery: [
+    { type:'info', msg:'System recovery in progress — motor temp declining', sensor:'Motor Temp' },
+    { type:'info', msg:'Manual override active — monitoring all parameters', sensor:'System' },
+  ]
+};
+
+// ====== LOGIN ======
+function login(role) {
+  currentRole = role;
+  document.getElementById('loginScreen').style.opacity = '0';
+  document.getElementById('loginScreen').style.transition = 'opacity 0.5s';
+  setTimeout(() => {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initApp();
+  }, 500);
+}
+
+function logout() {
+  clearInterval(predInterval);
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginScreen').style.opacity = '1';
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+  currentMode = 'normal';
+}
+
+// ====== INIT ======
+function initApp() {
+  document.getElementById('roleBadge').textContent = currentRole.toUpperCase();
+  applyRoleView();
+  renderSensors();
+  initCharts();
+  renderEngTable();
+  setMode('normal');
+  startClock();
+  startDataLoop();
+}
+
+function applyRoleView() {
+  const isManager = currentRole === 'manager';
+  const isEngineer = currentRole === 'engineer';
+  const isOperator = currentRole === 'operator';
+
+  document.getElementById('managerKpi').style.display = isManager ? 'grid' : 'none';
+  document.getElementById('engSection').style.display = isEngineer ? 'block' : 'none';
+  document.getElementById('engOnlyGauge').style.display = isEngineer ? 'block' : 'none';
+
+  // Operator: hide charts, show only alerts
+  document.getElementById('chartGrid').style.display = isOperator ? 'none' : 'grid';
+  document.getElementById('gaugeRow').style.display = isOperator ? 'none' : 'grid';
+  document.getElementById('simSection').style.display = isEngineer ? 'block' : 'none';
+}
+
+// ====== SENSORS ======
+function renderSensors() {
+  const container = document.getElementById('sensorCards');
+  container.innerHTML = '';
+  sensors.forEach(s => {
+    sensorData[s.id] = { history: Array(12).fill(s.value), current: s.value };
+    const card = document.createElement('div');
+    card.className = 'sensor-card';
+    card.id = 'sensor-' + s.id;
+    card.innerHTML = `
+      <div class="sensor-header">
+        <span class="sensor-name">${s.name}</span>
+        <span class="sensor-unit">${s.unit}</span>
+      </div>
+      <div class="sensor-value" id="sv-${s.id}">${s.value}</div>
+      <div class="sparkline" id="spark-${s.id}"></div>
+    `;
+    container.appendChild(card);
+    renderSparkline(s.id);
+  });
+}
+
+function renderSparkline(id) {
+  const el = document.getElementById('spark-' + id);
+  if (!el) return;
+  const hist = sensorData[id].history;
+  const max = Math.max(...hist, 1);
+  el.innerHTML = hist.map(v => {
+    const h = Math.max(4, (v / max) * 28);
+    return `<div class="spark-bar" style="height:${h}px"></div>`;
+  }).join('');
+}
+
+// ====== CHARTS ======
+function initCharts() {
+  const chartDefs = [
+    { id:'motorChart', color:'#ff2d55', dataId:'motor' },
+    { id:'voltChart', color:'#00d4ff', dataId:'voltage' },
+    { id:'pressChart', color:'#ff9500', dataId:'pressure' },
+    { id:'flowChart', color:'#00ff88', dataId:'flow' },
+  ];
+
+  chartDefs.forEach(def => {
+    const canvas = document.getElementById(def.id);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const hist = sensorData[def.dataId]?.history || Array(20).fill(0);
+
+    charts[def.dataId] = {
+      canvas, ctx,
+      data: [...hist, ...Array(Math.max(0, 20 - hist.length)).fill(hist[0] || 0)].slice(-20),
+      color: def.color,
+      dataId: def.dataId,
+      destroy() {}
+    };
+    drawChart(def.dataId);
+  });
+}
+
+function drawChart(id) {
+  const chart = charts[id];
+  if (!chart) return;
+  const { canvas, ctx, data, color } = chart;
+  canvas.width = canvas.offsetWidth || 240;
+  canvas.height = 80;
+  const w = canvas.width, h = canvas.height;
+  const max = Math.max(...data) * 1.1 || 1;
+  const min = Math.min(...data) * 0.9;
+  ctx.clearRect(0, 0, w, h);
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, color + '40');
+  grad.addColorStop(1, color + '00');
+
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    const x = (i / (data.length - 1)) * w;
+    const y = h - ((v - min) / (max - min)) * (h - 10) - 5;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    const x = (i / (data.length - 1)) * w;
+    const y = h - ((v - min) / (max - min)) * (h - 10) - 5;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+// ====== DATA LOOP ======
+function startDataLoop() {
+  setInterval(() => {
+    sensors.forEach(s => {
+      let noise = (Math.random() - 0.5) * (s.max * 0.03);
+      let target = s.value;
+
+      if (currentMode === 'warning') {
+        if (s.id === 'motor') target = 91 + Math.random() * 4;
+        if (s.id === 'pressure') target = 118 + Math.random() * 6;
+      } else if (currentMode === 'failure') {
+        if (s.id === 'motor') target = 105 + Math.random() * 8;
+        if (s.id === 'pressure') target = 138 + Math.random() * 5;
+        if (s.id === 'vibration') target = 3.8 + Math.random() * 0.5;
+      } else if (currentMode === 'recovery') {
+        if (s.id === 'motor') target = Math.max(s.value - 0.5, 75);
+      } else {
+        target = s.value + noise;
+        target = Math.max(s.max * 0.3, Math.min(s.max * 0.75, target));
+      }
+
+      sensorData[s.id].current = parseFloat(target.toFixed(1));
+      sensorData[s.id].history.push(sensorData[s.id].current);
+      if (sensorData[s.id].history.length > 12) sensorData[s.id].history.shift();
+
+      // Update sidebar card
+      const valEl = document.getElementById('sv-' + s.id);
+      const card = document.getElementById('sensor-' + s.id);
+      if (valEl) valEl.textContent = sensorData[s.id].current;
+      if (card) {
+        card.className = 'sensor-card';
+        if (sensorData[s.id].current >= s.critical) card.classList.add('critical');
+        else if (sensorData[s.id].current >= s.warn) card.classList.add('warn');
+      }
+      renderSparkline(s.id);
+    });
+
+    // Update chart displays
+    if (charts.motor) {
+      charts.motor.data.push(sensorData.motor.current);
+      charts.motor.data.shift();
+      drawChart('motor');
+      const v = sensorData.motor.current;
+      document.getElementById('motorVal').textContent = v + '°C';
+      document.getElementById('motorVal').style.color = v >= 100 ? 'var(--danger)' : v >= 85 ? 'var(--warn)' : 'var(--accent)';
+    }
+    if (charts.voltage) {
+      charts.voltage.data.push(sensorData.voltage.current);
+      charts.voltage.data.shift();
+      drawChart('voltage');
+      document.getElementById('voltVal').textContent = sensorData.voltage.current + 'V';
+    }
+    if (charts.pressure) {
+      charts.pressure.data.push(sensorData.pressure.current);
+      charts.pressure.data.shift();
+      drawChart('pressure');
+      const pv = sensorData.pressure.current;
+      document.getElementById('pressVal').textContent = pv + ' PSI';
+      document.getElementById('pressVal').style.color = pv >= 140 ? 'var(--danger)' : pv >= 120 ? 'var(--warn)' : 'var(--accent)';
+    }
+    if (charts.flow) {
+      charts.flow.data.push(sensorData.flow.current);
+      charts.flow.data.shift();
+      drawChart('flow');
+      document.getElementById('flowVal').textContent = sensorData.flow.current + ' L/s';
+    }
+
+    updateRiskGauge();
+
+  }, 1500);
+}
+
+// ====== RISK GAUGE ======
+function updateRiskGauge() {
+  const risk = currentMode === 'failure' ? 85 + Math.random() * 10
+    : currentMode === 'warning' ? 45 + Math.random() * 15
+    : currentMode === 'recovery' ? 30 + Math.random() * 10
+    : 15 + Math.random() * 15;
+
+  const score = Math.round(risk);
+  const fill = document.getElementById('gaugeFill');
+  const val = document.getElementById('gaugeVal');
+  if (fill) {
+    const offset = 188 - (score / 100) * 188;
+    fill.style.strokeDashoffset = offset;
+  }
+  if (val) {
+    val.textContent = score;
+    val.style.fill = score > 70 ? '#ff2d55' : score > 40 ? '#ff9500' : '#00d4ff';
+  }
+
+  // Confidence gauge
+  const conf = currentMode === 'failure' ? 94 : currentMode === 'warning' ? 82 : 87 + Math.random() * 5;
+  const confEl = document.getElementById('confGaugeFill');
+  const confVal = document.getElementById('confGaugeVal');
+  if (confEl) confEl.style.strokeDashoffset = 188 - (conf / 100) * 188;
+  if (confVal) confVal.textContent = Math.round(conf) + '%';
+}
+
+// ====== MODE ======
+function setMode(mode) {
+  currentMode = mode;
+  clearInterval(predInterval);
+
+  const modeEl = document.getElementById('sysMode');
+  const dotEl = document.getElementById('statusDot');
+
+  const configs = {
+    normal: { text:'◆ NORMAL OPERATION ◆', cls:'mode-normal', dotColor:'var(--accent2)', emg:false },
+    warning: { text:'⚠ WARNING STATE ⚠', cls:'mode-warning', dotColor:'var(--warn)', emg:false },
+    failure: { text:'🔴 SYSTEM FAILURE 🔴', cls:'mode-failure', dotColor:'var(--danger)', emg:true },
+    recovery: { text:'♻ RECOVERY MODE ♻', cls:'mode-recovery', dotColor:'#bf5fff', emg:false },
+  };
+
+  const cfg = configs[mode];
+  modeEl.textContent = cfg.text;
+  modeEl.className = 'sys-mode ' + cfg.cls;
+  dotEl.style.background = cfg.dotColor;
+  dotEl.style.boxShadow = `0 0 8px ${cfg.dotColor}`;
+
+  // Emergency mode
+  document.body.classList.toggle('emergency-mode', cfg.emg);
+
+  // Prediction banner
+  const banner = document.getElementById('predBanner');
+  if (mode === 'failure') {
+    banner.classList.add('active');
+    startPredTimer();
+    speakAlert('Critical warning. Motor failure predicted. Immediate action required.');
+  } else if (mode === 'warning') {
+    banner.classList.add('active');
+    document.getElementById('predMsg').textContent = 'Elevated sensor readings — monitoring closely. Intervention may be required.';
+    document.getElementById('predConf').textContent = '79%';
+    document.getElementById('confBar').style.width = '79%';
+    document.getElementById('confPct').textContent = '79%';
+    predTimer = 240;
+    startPredTimer();
+    speakAlert('Warning. System anomaly detected. Please check alerts.');
+  } else {
+    banner.classList.remove('active');
+  }
+
+  // Update alerts
+  updateAlerts(mode);
+  updateAIInsight(mode);
+  addTimeline(mode);
+}
+
+function startPredTimer() {
+  predTimer = currentMode === 'failure' ? 47 : 240;
+  predInterval = setInterval(() => {
+    predTimer--;
+    if (predTimer <= 0) {
+      predTimer = 0;
+      clearInterval(predInterval);
+    }
+    const mins = Math.floor(predTimer / 60).toString().padStart(2, '0');
+    const secs = (predTimer % 60).toString().padStart(2, '0');
+    const el = document.getElementById('timerVal');
+    if (el) el.textContent = `${mins}:${secs}`;
+    if (currentMode === 'failure') {
+      document.getElementById('predConf').textContent = Math.max(80, 94 - Math.floor((47 - predTimer) * 0.1)) + '%';
+    }
+  }, 1000);
+}
+
+// ====== ALERTS ======
+function updateAlerts(mode) {
+  const list = document.getElementById('alertList');
+  list.innerHTML = '';
+  const alerts = modeAlerts[mode] || [];
+
+  if (alerts.length === 0) {
+    list.innerHTML = `<div style="text-align:center;color:var(--text2);font-size:0.72rem;padding:20px;font-family:'JetBrains Mono',monospace;">
+      ✅ No active alerts<br><span style="font-size:0.6rem;opacity:0.6">AI monitoring all systems</span>
+    </div>`;
+    document.getElementById('alertCount').textContent = '0';
+    document.getElementById('alertCount').style.background = 'var(--accent2)';
+    return;
+  }
+
+  document.getElementById('alertCount').textContent = alerts.length;
+  document.getElementById('alertCount').style.background = mode === 'failure' ? 'var(--danger)' : 'var(--warn)';
+
+  alerts.forEach(a => {
+    alertIdCounter++;
+    const id = alertIdCounter;
+    const item = document.createElement('div');
+    item.className = `alert-item ${a.type}`;
+    item.id = 'alert-' + id;
+    const now = new Date().toLocaleTimeString();
+    item.innerHTML = `
+      <div class="alert-tag tag-${a.type}">${a.type.toUpperCase()}</div>
+      <div class="alert-msg">${a.msg}</div>
+      <div class="alert-footer">
+        <span class="alert-time">🕐 ${now} — ${a.sensor}</span>
+        <button class="ack-btn" onclick="ackAlert(${id})">✓ ACK</button>
+      </div>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function ackAlert(id) {
+  const el = document.getElementById('alert-' + id);
+  if (el) {
+    el.style.opacity = '0.3';
+    el.style.transform = 'translateX(10px)';
+    el.style.transition = 'all 0.4s';
+    setTimeout(() => el.remove(), 400);
+    addTimelineEntry('info', '🟢 Alert acknowledged by ' + currentRole);
+  }
+}
+
+// ====== AI INSIGHT ======
+function updateAIInsight(mode) {
+  const insights = aiInsights[mode] || aiInsights.normal;
+  const insight = insights[Math.floor(Math.random() * insights.length)];
+  document.getElementById('aiInsightText').textContent = insight.text;
+  document.getElementById('confBar').style.width = insight.conf + '%';
+  document.getElementById('confPct').textContent = insight.conf + '%';
+}
+
+// ====== TIMELINE ======
+function addTimeline(mode) {
+  const msgs = {
+    normal: { color:'var(--accent2)', msg:'System returned to normal operating state' },
+    warning: { color:'var(--warn)', msg:'WARNING: Anomalous readings detected — AI monitoring escalated' },
+    failure: { color:'var(--danger)', msg:'🔴 FAILURE STATE: Emergency protocols activated' },
+    recovery: { color:'#bf5fff', msg:'♻ Recovery mode initiated — manual override active' },
+  };
+  const m = msgs[mode];
+  addTimelineEntry(m.color, m.msg);
+}
+
+function addTimelineEntry(color, msg) {
+  const tl = document.getElementById('timeline');
+  const item = document.createElement('div');
+  item.className = 'tl-item';
+  const now = new Date().toLocaleTimeString();
+  item.innerHTML = `
+    <div class="tl-dot" style="background:${typeof color === 'string' && color.startsWith('var') ? color : color}"></div>
+    <div class="tl-content">
+      <div class="tl-msg">${msg}</div>
+      <div class="tl-time">${now}</div>
+    </div>
+  `;
+  tl.insertBefore(item, tl.firstChild);
+  if (tl.children.length > 15) tl.removeChild(tl.lastChild);
+}
+
+// ====== STORM ======
+function triggerStorm() {
+  if (stormActive) return;
+  stormActive = true;
+  const badge = document.getElementById('stormBadge');
+  const list = document.getElementById('alertList');
+  badge.classList.add('active');
+
+  // Flood with 20 alerts
+  const stormAlerts = [
+    'Sensor A-01: Temperature spike', 'Valve B-03: Pressure anomaly', 'Motor C-02: Vibration high',
+    'Flow D-01: Below threshold', 'Pump E-04: Cavitation detected', 'Temp F-02: Over limit',
+    'Sensor G-01: Signal lost', 'Valve H-03: Stuck open', 'Motor I-02: Overheating',
+    'Flow J-01: Surge detected', 'Pump K-04: Seal failure', 'Temp L-02: Critical',
+    'Sensor M-01: Calibration error', 'Valve N-03: Pressure drop', 'Motor O-02: Bearing noise',
+    'Flow P-01: Reverse flow', 'Pump Q-04: Power spike', 'Temp R-02: Warning',
+    'Sensor S-01: Range error', 'Valve T-03: Timeout',
+  ];
+
+  list.innerHTML = `<div style="text-align:center;color:#bf5fff;font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:10px;">
+    ⚡ ${stormAlerts.length} ALERTS INCOMING...<br>
+    <span style="font-size:0.6rem;opacity:0.7">AI FILTERING IN PROGRESS...</span>
+  </div>`;
+
+  setTimeout(() => {
+    list.innerHTML = '';
+    const top3 = [
+      { type:'critical', msg:'🔴 AI SELECTED: Motor C-02 — Overheating cascade risk (CRITICAL)', sensor:'Motor C-02' },
+      { type:'critical', msg:'🔴 AI SELECTED: Pump K-04 — Seal failure — fluid loss imminent', sensor:'Pump K-04' },
+      { type:'warning', msg:'⚠ AI SELECTED: Valve H-03 — Stuck open causing pressure surge', sensor:'Valve H-03' },
+    ];
+    document.getElementById('alertCount').textContent = '3';
+    document.getElementById('alertCount').style.background = 'var(--danger)';
+
+    top3.forEach(a => {
+      alertIdCounter++;
+      const id = alertIdCounter;
+      const item = document.createElement('div');
+      item.className = `alert-item ${a.type}`;
+      item.id = 'alert-' + id;
+      item.innerHTML = `
+        <div class="alert-tag tag-${a.type}">${a.type.toUpperCase()}</div>
+        <div class="alert-msg">${a.msg}</div>
+        <div class="alert-footer">
+          <span class="alert-time" style="color:#bf5fff">⚡ AI filtered ${stormAlerts.length}→3</span>
+          <button class="ack-btn" onclick="ackAlert(${id})">✓ ACK</button>
+        </div>
+      `;
+      list.appendChild(item);
+    });
+
+    document.getElementById('aiInsightText').textContent =
+      `🤖 STORM MODE: ${stormAlerts.length} simultaneous alerts detected. AI filtered to 3 critical issues requiring immediate attention. 17 alerts suppressed as non-critical.`;
+    document.getElementById('confBar').style.width = '91%';
+    document.getElementById('confPct').textContent = '91%';
+    addTimelineEntry('#bf5fff', `⚡ Alarm storm detected: ${stormAlerts.length} alerts → AI filtered to 3 critical`);
+    speakAlert('Alert storm detected. AI has filtered twenty alerts to three critical issues. Immediate attention required.');
+
+    setTimeout(() => {
+      badge.classList.remove('active');
+      stormActive = false;
+    }, 8000);
+  }, 2500);
+}
+
+// ====== VOICE ======
+function speakAlert(text) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.rate = 0.95; utt.pitch = 0.9; utt.volume = 0.9;
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find(v => v.name.includes('Google') || v.name.includes('Microsoft'));
+  if (preferred) utt.voice = preferred;
+
+  const indicator = document.getElementById('voiceIndicator');
+  document.getElementById('voiceText').textContent = text.substring(0, 50) + '...';
+  indicator.classList.add('active');
+  utt.onend = () => indicator.classList.remove('active');
+  window.speechSynthesis.speak(utt);
+}
+
+// ====== ENG TABLE ======
+function renderEngTable() {
+  const tbody = document.getElementById('engTable');
+  if (!tbody) return;
+  tbody.innerHTML = engineerComponents.map(c => {
+    const cls = c.status === 'ONLINE' ? 'status-good' : c.status === 'WARNING' ? 'status-warn' : 'status-bad';
+    return `<tr>
+      <td>${c.name}</td>
+      <td class="${cls}">${c.status}</td>
+      <td>${c.load}</td>
+      <td>${c.check}</td>
+      <td>${c.uptime}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ====== CLOCK ======
+function startClock() {
+  function tick() {
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ====== INIT ======
+window.speechSynthesis?.getVoices();
+addTimelineEntry('var(--accent)', 'System initialized — AI monitoring active');
+</script>
+</body>
+</html>
