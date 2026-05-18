@@ -12,10 +12,9 @@ const MACHINES_CONFIG = [
     name: "THERMAL CORE MOTOR",
     sensors: [
       { id: "temp", name: "MOTOR CORE TEMP", value: 70, unit: "°C", max: 120, warn: 75, critical: 85 },
-      { id: "voltage", name: "LINE VOLTAGE", value: 185, unit: "V", max: 250, warn: 200, critical: 220 },
       { id: "pressure", name: "CORE PRESSURE", value: 80, unit: "PSI", max: 150, warn: 85, critical: 100 },
-      { id: "flow", name: "COOLANT FLOW", value: 4.2, unit: "L/s", max: 10, warn: 3.5, critical: 2.5 },
-      { id: "vibration", name: "ROTOR VIBRATION", value: 1.5, unit: "g", max: 5, warn: 1.2, critical: 2.0 },
+      { id: "vibration", name: "ROTOR VIBRATION", value: 1.2, unit: "g", max: 5, warn: 1.5, critical: 2.0 },
+      { id: "voltage", name: "LINE VOLTAGE", value: 185, unit: "V", max: 250, warn: 200, critical: 220 },
       { id: "current", name: "INDUCTION CURRENT", value: 13, unit: "A", max: 30, warn: 22, critical: 26 }
     ]
   },
@@ -23,24 +22,18 @@ const MACHINES_CONFIG = [
     id: "pump",
     name: "HYDRAULIC FLOW PUMP",
     sensors: [
-      { id: "temp", name: "PUMP TEMP", value: 58, unit: "°C", max: 100, warn: 65, critical: 80 },
-      { id: "voltage", name: "MOTOR VOLTAGE", value: 190, unit: "V", max: 250, warn: 210, critical: 230 },
-      { id: "pressure", name: "DISCHARGE PRESSURE", value: 92, unit: "PSI", max: 200, warn: 110, critical: 140 },
-      { id: "flow", name: "DISCHARGE FLOW", value: 6.8, unit: "L/s", max: 15, warn: 5.0, critical: 3.5 },
-      { id: "vibration", name: "PUMP VIBRATION", value: 1.8, unit: "g", max: 5, warn: 1.5, critical: 2.5 },
-      { id: "current", name: "PUMP CURRENT", value: 16, unit: "A", max: 35, warn: 25, critical: 30 }
+      { id: "flow_rate", name: "FLOW RATE", value: 4.0, unit: "L/s", max: 6.0, warn: 3.5, critical: 2.5 },
+      { id: "pressure", name: "DISCHARGE PRESSURE", value: 90, unit: "PSI", max: 140, warn: 95, critical: 100 },
+      { id: "efficiency", name: "EFFICIENCY", value: 85, unit: "%", max: 100, warn: 75, critical: 70 }
     ]
   },
   {
     id: "generator",
     name: "TURBINE GENERATOR POWER",
     sensors: [
-      { id: "temp", name: "BEARING TEMP", value: 62, unit: "°C", max: 110, warn: 70, critical: 90 },
-      { id: "voltage", name: "GENERATED VOLTAGE", value: 215, unit: "V", max: 280, warn: 240, critical: 260 },
-      { id: "pressure", name: "STEAM PRESSURE", value: 115, unit: "PSI", max: 250, warn: 140, critical: 180 },
-      { id: "flow", name: "STEAM FLOW", value: 8.5, unit: "L/s", max: 20, warn: 6.5, critical: 4.5 },
-      { id: "vibration", name: "TURBINE VIBRATION", value: 1.2, unit: "g", max: 5, warn: 1.0, critical: 1.8 },
-      { id: "current", name: "GENERATED CURRENT", value: 24, unit: "A", max: 50, warn: 35, critical: 42 }
+      { id: "power", name: "POWER OUTPUT", value: 220, unit: "kW", max: 300, warn: 240, critical: 260 },
+      { id: "load", name: "GRID LOAD", value: 60, unit: "%", max: 100, warn: 75, critical: 85 },
+      { id: "frequency", name: "LINE FREQUENCY", value: 50, unit: "Hz", max: 60, warn: 49, critical: 48 }
     ]
   }
 ];
@@ -143,15 +136,13 @@ function Dashboard({ role }) {
     frequency: { name: "LINE FREQUENCY", unit: "Hz", max: 60, warn: 49, critical: 48 }
   };
 
-  // Real-time telemetry fetch updates (every 2 seconds)
+  // Real-time telemetry fetch updates (every 2 seconds) for ALL configured machines
   useEffect(() => {
-    if (!selectedMachineId) return;
-
-    const fetchData = () => {
-      const csvPath = `/datasets/${selectedMachineId}_data.csv?ts=${Date.now()}`;
+    const fetchMachineData = (mId) => {
+      const csvPath = `/datasets/${mId}_data.csv?ts=${Date.now()}`;
       fetch(csvPath)
         .then(res => {
-          if (!res.ok) throw new Error("Failed to fetch CSV");
+          if (!res.ok) throw new Error(`Failed to fetch CSV for ${mId}`);
           return res.text();
         })
         .then(text => {
@@ -197,20 +188,20 @@ function Dashboard({ role }) {
           Object.values(sensorsMap).forEach(s => {
             if (s.current >= s.critical) {
               newAlerts.push({
-                id: `alert-${selectedMachineId}-${s.id}-${Date.now()}`,
-                machineId: selectedMachineId,
+                id: `alert-${mId}-${s.id}-${Date.now()}`,
+                machineId: mId,
                 type: "critical",
                 sensor: s.name,
-                msg: `🔴 CRITICAL OUT-OF-LIMITS: ${selectedMachineId.toUpperCase()} ${s.name} of ${s.current.toFixed(1)}${s.unit} breached critical threshold!`,
+                msg: `🔴 CRITICAL OUT-OF-LIMITS: ${mId.toUpperCase()} ${s.name} of ${s.current.toFixed(1)}${s.unit} breached critical threshold!`,
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
               });
             } else if (s.current >= s.warn) {
               newAlerts.push({
-                id: `alert-${selectedMachineId}-${s.id}-${Date.now()}`,
-                machineId: selectedMachineId,
+                id: `alert-${mId}-${s.id}-${Date.now()}`,
+                machineId: mId,
                 type: "warning",
                 sensor: s.name,
-                msg: `⚠️ TELEMETRY WARN WARNING: ${selectedMachineId.toUpperCase()} ${s.name} at ${s.current.toFixed(1)}${s.unit} exceeds caution limits.`,
+                msg: `⚠️ TELEMETRY WARN WARNING: ${mId.toUpperCase()} ${s.name} at ${s.current.toFixed(1)}${s.unit} exceeds caution limits.`,
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
               });
             }
@@ -218,9 +209,9 @@ function Dashboard({ role }) {
 
           setMachinesData(prev => {
             const next = { ...prev };
-            if (next[selectedMachineId]) {
-              next[selectedMachineId] = {
-                ...next[selectedMachineId],
+            if (next[mId]) {
+              next[mId] = {
+                ...next[mId],
                 mode: mode,
                 risk: risk,
                 sensors: sensorsMap
@@ -243,14 +234,20 @@ function Dashboard({ role }) {
           }
         })
         .catch(err => {
-          console.error("Error fetching telemetry CSV:", err);
+          console.error(`Error fetching telemetry CSV for ${mId}:`, err);
         });
     };
 
-    fetchData();
-    const interval = setInterval(fetchData, 2000);
+    const fetchAllData = () => {
+      MACHINES_CONFIG.forEach(m => {
+        fetchMachineData(m.id);
+      });
+    };
+
+    fetchAllData();
+    const interval = setInterval(fetchAllData, 2000);
     return () => clearInterval(interval);
-  }, [selectedMachineId]);
+  }, []);
 
   const ackAlert = (id) => {
     setAlerts(prev => prev.filter(a => a.id !== id));
@@ -352,7 +349,41 @@ function Dashboard({ role }) {
   // 3. OPERATOR MACHINE SELECTION SCREEN LAYOUT
   const renderSelectionScreen = () => {
     return (
-      <div className="selection-screen-container fade-in">
+      <div className="selection-screen-container fade-in" style={{ position: "relative" }}>
+        {/* Floating Logout Button at Top Right */}
+        <button 
+          className="logout-btn" 
+          onClick={() => window.location.reload()}
+          style={{
+            position: "absolute",
+            top: "24px",
+            right: "24px",
+            padding: "8px 18px",
+            fontSize: "0.75rem",
+            background: "rgba(4, 11, 20, 0.85)",
+            border: "1px solid var(--border-color)",
+            color: "var(--text-muted)",
+            cursor: "pointer",
+            borderRadius: "4px",
+            fontFamily: "var(--font-mono)",
+            letterSpacing: "0.1em",
+            zIndex: 10,
+            transition: "all var(--transition-fast)"
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "var(--red)";
+            e.currentTarget.style.color = "var(--red)";
+            e.currentTarget.style.boxShadow = "0 0 10px rgba(255, 59, 59, 0.25)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "var(--border-color)";
+            e.currentTarget.style.color = "var(--text-muted)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        >
+          ⏏ LOGOUT
+        </button>
+
         <div className="selection-card">
           <div className="selection-glow-logo">⚡ NEXUS SCADA SYSTEMS ⚡</div>
           <h2>SELECT ASSIGNED TELEMETRY STATION</h2>
