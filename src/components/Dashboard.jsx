@@ -14,6 +14,21 @@ const initialSensors = [
   { id: "current", name: "INDUCTION CURRENT", value: 13, unit: "A", max: 30, warn: 22, critical: 26 }
 ];
 
+const modeAlerts = {
+  normal: [],
+  warning: [
+    { type: "warning", sensor: "MOTOR CORE TEMP", msg: "Telemetry drift excursion detected. Thermal gradient exceeds threshold." },
+    { type: "info", sensor: "SYSTEM PRESSURE", msg: "Pressure oscillations rising. Micro-fracture hazard evaluated at 12%." }
+  ],
+  failure: [
+    { type: "critical", sensor: "MOTOR CORE TEMP", msg: "CRITICAL FAILURE: Core temp thermal overload. Stator winding melting." },
+    { type: "critical", sensor: "LINE VOLTAGE", msg: "VOLTAGE INSTABILITY: Grid synchronizer drop. Protective relays tripped." }
+  ],
+  recovery: [
+    { type: "info", sensor: "COOLANT FLOW", msg: "Coolant circuit flow restored. Thermal gradient normalized." }
+  ]
+};
+
 function Dashboard({ role }) {
   const [mode, setMode] = useState("normal");
   const [prevMode, setPrevMode] = useState("normal");
@@ -27,14 +42,30 @@ function Dashboard({ role }) {
     return data;
   });
 
+  const [alerts, setAlerts] = useState([]);
+
   // Audio Context refs for safe lifecycle garbage collection (No memory leaks)
   const failureIntervalRef = useRef(null);
   const failureCtxRef = useRef(null);
 
+  // Sync alerts when mode changes
+  useEffect(() => {
+    const active = modeAlerts[mode.toLowerCase()] || [];
+    setAlerts(active.map((a, index) => ({
+      id: `alert-${mode}-${index}-${Date.now()}`,
+      ...a,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    })));
+  }, [mode]);
+
+  const ackAlert = (id) => {
+    setAlerts(prev => prev.filter(a => a.id !== id));
+  };
+
   // Telemetry Polling (every 3 seconds to match CSV generator)
   useEffect(() => {
     const fetchData = () => {
-      fetch("http://localhost:5000/data")
+      fetch("http://127.0.0.1:5000/data")
         .then(res => res.json())
         .then(res => {
           if (!res || Object.keys(res).length === 0) return;
@@ -240,10 +271,14 @@ function Dashboard({ role }) {
           role={role}
           mode={mode}
           sensors={sensors}
+          alerts={alerts}
+          ackAlert={ackAlert}
         />
         <AlertsPanel
+          role={role}
           mode={mode}
-          stormActive={false}
+          alerts={alerts}
+          ackAlert={ackAlert}
         />
       </div>
     </div>

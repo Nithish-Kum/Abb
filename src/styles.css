@@ -581,9 +581,8 @@ body::after {
 }
 
 .center-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
+  flex: 1 0 auto;
+  overflow-y: visible;
 }
 
 .alerts-panel {
@@ -647,40 +646,114 @@ body::after {
 .sensor-card {
   background: rgba(7, 18, 33, 0.85);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 14px 16px;
-  margin-bottom: 12px;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
   transition: all var(--transition-normal) cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   position: relative;
-  overflow: hidden;
+  overflow: visible; /* Required to show tooltips outside the card boundary */
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
-}
-
-.sensor-card::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: var(--accent);
-  transition: background var(--transition-normal);
 }
 
 .sensor-card:hover {
   border-color: rgba(var(--accent-rgb), 0.55);
   box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.15), inset 0 0 8px rgba(var(--accent-rgb), 0.05);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
+}
+
+/* Thin left status indicator strip */
+.sensor-status-strip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.sensor-status-strip.normal {
+  background: var(--green);
+}
+
+.sensor-status-strip.warn {
+  background: var(--yellow);
+  animation: stripWarnPulse 1.2s infinite alternate ease-in-out;
+}
+
+.sensor-status-strip.critical {
+  background: var(--red);
+  animation: stripCritBlink 0.6s infinite ease-in-out;
+}
+
+@keyframes stripWarnPulse {
+  0% { opacity: 0.35; box-shadow: 0 0 2px var(--yellow); }
+  100% { opacity: 1; box-shadow: 0 0 10px var(--yellow); }
+}
+
+@keyframes stripCritBlink {
+  0%, 100% { opacity: 0.35; box-shadow: 0 0 2px var(--red); }
+  50% { opacity: 1; box-shadow: 0 0 12px var(--red); }
 }
 
 /* Dynamic status based color changes for card border and values */
-.sensor-card.warn::after {
-  background: var(--yellow);
+.sensor-card.normal {
+  border-color: rgba(0, 230, 118, 0.15);
 }
 
-.sensor-card.critical::after {
-  background: var(--red);
+.sensor-card.normal:hover {
+  border-color: rgba(0, 230, 118, 0.6);
+  box-shadow: 0 0 15px rgba(0, 230, 118, 0.25), inset 0 0 8px rgba(0, 230, 118, 0.05);
+}
+
+.sensor-card.warn {
+  border-color: var(--yellow) !important;
+  box-shadow: 0 0 18px rgba(255, 170, 0, 0.35), inset 0 0 8px rgba(255, 170, 0, 0.1) !important;
+  transform: scale(1.02);
+}
+
+.sensor-card.critical {
+  border-color: var(--red) !important;
+  box-shadow: 0 0 24px rgba(255, 59, 59, 0.55), inset 0 0 10px rgba(255, 59, 59, 0.2) !important;
+  transform: scale(1.02);
+}
+
+/* CSS-based dynamic custom hover tooltips */
+.sensor-tooltip {
+  position: absolute;
+  bottom: 110%;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: rgba(5, 12, 22, 0.96);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-main);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 1000;
+}
+
+.sensor-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: rgba(5, 12, 22, 0.96);
+}
+
+.sensor-card:hover .sensor-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .sensor-header {
@@ -706,14 +779,19 @@ body::after {
   transition: color var(--transition-normal);
 }
 
+.sensor-card.normal .sensor-value {
+  color: var(--green);
+  text-shadow: 0 0 10px rgba(0, 230, 118, 0.25);
+}
+
 .sensor-card.warn .sensor-value {
   color: var(--yellow);
-  text-shadow: 0 0 10px rgba(255, 170, 0, 0.2);
+  text-shadow: 0 0 12px rgba(255, 170, 0, 0.4);
 }
 
 .sensor-card.critical .sensor-value {
   color: var(--red);
-  text-shadow: 0 0 12px rgba(255, 59, 59, 0.3);
+  text-shadow: 0 0 15px rgba(255, 59, 59, 0.55);
 }
 
 .sensor-unit {
@@ -726,7 +804,7 @@ body::after {
 /* ANIMATED SENSOR GRAPH BARS */
 .sparkline {
   height: 24px;
-  margin-top: 10px;
+  margin-top: 8px;
   display: flex;
   align-items: flex-end;
   gap: 3px;
@@ -736,32 +814,41 @@ body::after {
 .spark-bar {
   flex: 1;
   border-radius: 1px 1px 0 0;
-  background: rgba(var(--accent-rgb), 0.25);
   transition: height 0.4s ease, background var(--transition-normal);
   min-height: 2px;
 }
 
-.sensor-card:hover .spark-bar {
-  background: rgba(var(--accent-rgb), 0.55);
+/* Value-based color synchronization for spark bars */
+.sensor-card.normal .spark-bar {
+  background: rgba(0, 230, 118, 0.35);
+  box-shadow: 0 0 4px rgba(0, 230, 118, 0.15);
+}
+
+.sensor-card.normal:hover .spark-bar {
+  background: rgba(0, 230, 118, 0.7);
+  box-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
 }
 
 .sensor-card.warn .spark-bar {
-  background: rgba(255, 170, 0, 0.25);
+  background: rgba(255, 170, 0, 0.65);
+  box-shadow: 0 0 6px rgba(255, 170, 0, 0.35);
+  animation: barFluctuate 1.4s infinite alternate ease-in-out;
 }
 
 .sensor-card.critical .spark-bar {
-  background: rgba(255, 59, 59, 0.3);
-  animation: alarmFlicker 0.6s infinite alternate;
+  background: rgba(255, 59, 59, 0.9);
+  box-shadow: 0 0 10px rgba(255, 59, 59, 0.5);
+  animation: barSpike 0.7s infinite alternate ease-in-out;
 }
 
-@keyframes alarmFlicker {
-  0% {
-    opacity: 0.65;
-  }
+@keyframes barFluctuate {
+  0% { transform: scaleY(1); }
+  100% { transform: scaleY(0.75); }
+}
 
-  100% {
-    opacity: 1;
-  }
+@keyframes barSpike {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.4) translateY(-1px); }
 }
 
 /* ==========================================
@@ -997,8 +1084,37 @@ body::after {
 }
 
 .alert-item.critical {
-  border-color: rgba(255, 59, 59, 0.35);
-  box-shadow: 0 0 10px rgba(255, 59, 59, 0.08), inset 0 0 10px rgba(255, 59, 59, 0.05);
+  border-color: var(--red) !important;
+  box-shadow: 0 0 15px rgba(255, 59, 59, 0.35), inset 0 0 10px rgba(255, 59, 59, 0.05) !important;
+  background: rgba(255, 59, 59, 0.05) !important;
+  animation: alertSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards, criticalPulse 1.5s infinite alternate ease-in-out;
+}
+
+.alert-item.warning {
+  border-color: var(--yellow) !important;
+  background: rgba(255, 170, 0, 0.03) !important;
+  animation: alertSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.alert-item.info {
+  border-color: var(--blue) !important;
+  animation: alertSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes alertSlideIn {
+  from {
+    transform: translateX(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes criticalPulse {
+  0% { border-color: rgba(255, 59, 59, 0.4); box-shadow: 0 0 10px rgba(255, 59, 59, 0.15); }
+  100% { border-color: rgba(255, 59, 59, 1); box-shadow: 0 0 20px rgba(255, 59, 59, 0.35); }
 }
 
 .alert-tag {
@@ -1807,4 +1923,606 @@ body.emergency-mode .prediction-banner {
     transform: scale(1.0) translateY(0);
     filter: blur(0);
   }
+}
+
+/* ==========================================
+   ROLE-BASED SCADA & LAYOUT CUSTOMIZATIONS
+   ========================================== */
+
+/* 1. Dramatic SCADA failure screen shake */
+@keyframes scadaShake {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  10% { transform: translate(-2px, -1.5px) rotate(-0.05deg); }
+  20% { transform: translate(-3px, 0px) rotate(0.05deg); }
+  30% { transform: translate(0px, -2px) rotate(0deg); }
+  40% { transform: translate(2.5px, 1.5px) rotate(0.05deg); }
+  50% { transform: translate(1px, 2px) rotate(-0.05deg); }
+  60% { transform: translate(-1.5px, 1px) rotate(0deg); }
+  70% { transform: translate(2px, -1px) rotate(-0.05deg); }
+  80% { transform: translate(-2px, 2px) rotate(0.05deg); }
+  90% { transform: translate(1.5px, -2px) rotate(0deg); }
+}
+
+.dashboard.red {
+  animation: scadaShake 0.4s infinite linear, failureGlitch 8s infinite alternate !important;
+}
+
+/* 2. Glow indicator tab selector (Channel Swapping) */
+.channel-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.channel-tab {
+  background: rgba(7, 18, 33, 0.65);
+  border: 1px solid var(--border-color);
+  padding: 6px 14px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.channel-tab:hover {
+  border-color: rgba(var(--accent-rgb), 0.5);
+  color: var(--accent);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.2);
+}
+
+.channel-tab.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.12);
+  box-shadow: 0 0 15px rgba(var(--accent-rgb), 0.3), inset 0 0 5px rgba(var(--accent-rgb), 0.1);
+  text-shadow: var(--accent-glow);
+}
+
+/* 3. Sub-Navigation Tabs for Engineer deep-dive */
+.eng-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px;
+}
+
+.eng-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 6px 16px;
+  cursor: pointer;
+  position: relative;
+  transition: all var(--transition-normal);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.eng-tab::after {
+  content: '';
+  position: absolute;
+  bottom: -11px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: transparent;
+  transition: all var(--transition-normal);
+}
+
+.eng-tab:hover {
+  color: var(--accent);
+}
+
+.eng-tab.active {
+  color: var(--accent);
+  text-shadow: var(--accent-glow);
+}
+
+.eng-tab.active::after {
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+}
+
+/* 4. SCADA High-Tech Linear progress instruments (circular replacements) */
+.scada-linear-container {
+  background: rgba(7, 18, 33, 0.85);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.2);
+  transition: border-color var(--transition-normal);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.scada-linear-container:hover {
+  border-color: rgba(var(--accent-rgb), 0.25);
+}
+
+.scada-linear-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.scada-linear-title {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.scada-linear-value {
+  font-family: var(--font-title);
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.scada-linear-track {
+  height: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.scada-linear-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s;
+}
+
+.scada-linear-limits {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: var(--text-muted);
+}
+
+/* 5. Business KPI cards for Manager HUD */
+.manager-kpi {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.kpi-card {
+  background: rgba(7, 18, 33, 0.85);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.2);
+  transition: all var(--transition-normal);
+}
+
+.kpi-card:hover {
+  border-color: rgba(var(--accent-rgb), 0.25);
+  transform: translateY(-2px);
+}
+
+.kpi-val {
+  font-family: var(--font-title);
+  font-size: 1.9rem;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.kpi-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* 6. Technical Engineering Log Filtering UI */
+.log-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.log-filter-btn {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  padding: 4px 10px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-transform: uppercase;
+}
+
+.log-filter-btn:hover {
+  border-color: rgba(var(--accent-rgb), 0.3);
+  color: var(--accent);
+}
+
+.log-filter-btn.active {
+  background: rgba(var(--accent-rgb), 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.2);
+}
+
+.scada-log-list {
+  max-height: 250px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+}
+
+.scada-log-item {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.02);
+  background: rgba(5, 10, 20, 0.4);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  animation: fadeInUp 0.3s ease forwards;
+}
+
+.scada-log-item.info { border-left: 3px solid var(--blue); }
+.scada-log-item.warn { border-left: 3px solid var(--yellow); }
+.scada-log-item.crit { border-left: 3px solid var(--red); }
+
+.scada-log-meta {
+  color: var(--text-muted);
+  font-size: 0.6rem;
+}
+
+/* 7. Operator Emergency Modal / Overload Popup Overlay */
+.scada-alarm-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+}
+
+.scada-alarm-popup {
+  background: #070e17;
+  border: 2px solid var(--red);
+  border-radius: 12px;
+  padding: 30px;
+  max-width: 500px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 0 30px rgba(255, 59, 59, 0.35), inset 0 0 20px rgba(255, 59, 59, 0.1);
+  animation: scadaModalPulse 1.5s infinite alternate ease-in-out;
+}
+
+@keyframes scadaModalPulse {
+  0% { border-color: rgba(255, 59, 59, 0.5); box-shadow: 0 0 15px rgba(255, 59, 59, 0.2); }
+  100% { border-color: rgba(255, 59, 59, 1); box-shadow: 0 0 35px rgba(255, 59, 59, 0.5); }
+}
+
+.scada-alarm-popup-title {
+  font-family: var(--font-title);
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: var(--red);
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+  text-shadow: 0 0 10px rgba(255, 59, 59, 0.5);
+}
+
+.scada-alarm-popup-text {
+  font-size: 0.85rem;
+  color: var(--text-main);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.scada-alarm-popup-btn {
+  background: var(--red);
+  border: none;
+  color: var(--bg);
+  padding: 10px 24px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-weight: 900;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  letter-spacing: 0.1em;
+  box-shadow: 0 0 15px rgba(255, 59, 59, 0.4);
+}
+
+.scada-alarm-popup-btn:hover {
+  background: #ffffff;
+  color: var(--red);
+  box-shadow: 0 0 25px rgba(255, 255, 255, 0.6);
+}
+
+/* ==========================================
+   OPERATOR-FIRST DYNAMIC COMPONENT STYLING
+   ========================================== */
+
+/* Alert Strip above the Main Chart */
+.scada-alert-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  background: rgba(7, 18, 33, 0.95);
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-main);
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.4s ease;
+}
+
+.scada-alert-strip.warning {
+  border: 1px solid var(--yellow);
+  box-shadow: 0 0 15px rgba(255, 170, 0, 0.25), inset 0 0 10px rgba(255, 170, 0, 0.05);
+}
+
+.scada-alert-strip.critical {
+  border: 1px solid var(--red);
+  box-shadow: 0 0 20px rgba(255, 59, 59, 0.35), inset 0 0 12px rgba(255, 59, 59, 0.1);
+  animation: stripCriticalPulse 1.5s infinite alternate ease-in-out;
+}
+
+@keyframes stripCriticalPulse {
+  0% {
+    box-shadow: 0 0 10px rgba(255, 59, 59, 0.2), inset 0 0 8px rgba(255, 59, 59, 0.05);
+  }
+  100% {
+    box-shadow: 0 0 22px rgba(255, 59, 59, 0.5), inset 0 0 14px rgba(255, 59, 59, 0.15);
+  }
+}
+
+.scada-alert-msg {
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.ack-strip-btn {
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.scada-alert-strip.warning .ack-strip-btn {
+  border: 1px solid var(--yellow);
+  color: var(--yellow);
+}
+
+.scada-alert-strip.warning .ack-strip-btn:hover {
+  background: var(--yellow);
+  color: var(--bg);
+  box-shadow: 0 0 12px var(--yellow);
+}
+
+.scada-alert-strip.critical .ack-strip-btn {
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+
+.scada-alert-strip.critical .ack-strip-btn:hover {
+  background: var(--red);
+  color: var(--bg);
+  box-shadow: 0 0 15px var(--red);
+}
+
+/* Action Panel below the Main Chart */
+.scada-action-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  background: rgba(7, 18, 33, 0.85);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 16px 24px;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.2);
+  margin-top: 10px;
+}
+
+.action-panel-btn {
+  background: rgba(255, 255, 255, 0.02);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 10px 22px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.action-panel-btn.ack {
+  border: 1px solid var(--green);
+  color: var(--green);
+}
+
+.action-panel-btn.ack:hover {
+  background: var(--green);
+  color: var(--bg);
+  box-shadow: 0 0 15px rgba(0, 230, 118, 0.5);
+}
+
+.action-panel-btn.reduce {
+  border: 1px solid var(--blue);
+  color: var(--blue);
+}
+
+.action-panel-btn.reduce:hover {
+  background: var(--blue);
+  color: var(--bg);
+  box-shadow: 0 0 15px rgba(0, 176, 255, 0.5);
+}
+
+.action-panel-btn.reduce.active {
+  border: 1px solid var(--yellow);
+  color: var(--yellow);
+  box-shadow: 0 0 10px rgba(255, 170, 0, 0.3);
+}
+
+.action-panel-btn.estop {
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+
+.action-panel-btn.estop:hover {
+  background: var(--red);
+  color: var(--bg);
+  box-shadow: 0 0 20px rgba(255, 59, 59, 0.6);
+}
+
+.action-panel-btn.estop.pulse {
+  animation: estopPulse 1s infinite alternate ease-in-out;
+}
+
+@keyframes estopPulse {
+  0% {
+    background: rgba(255, 59, 59, 0.05);
+    border-color: rgba(255, 59, 59, 0.4);
+    box-shadow: 0 0 5px rgba(255, 59, 59, 0.1);
+  }
+  100% {
+    background: rgba(255, 59, 59, 0.25);
+    border-color: rgba(255, 59, 59, 1);
+    box-shadow: 0 0 20px rgba(255, 59, 59, 0.5);
+  }
+}
+
+/* Load Throttling Feedback Toast */
+.load-reduced-toast {
+  text-align: center;
+  background: rgba(0, 176, 255, 0.15);
+  border: 1px solid var(--blue);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--blue);
+  letter-spacing: 0.05em;
+  box-shadow: 0 0 12px rgba(0, 176, 255, 0.25);
+}
+
+/* Faint secondary visuals grid style */
+.supporting-telemetry-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(5, 12, 22, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.supporting-telemetry-header {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+}
+
+.secondary-visuals-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 15px;
+  opacity: 0.55;
+  transition: opacity var(--transition-normal);
+}
+
+.secondary-visuals-grid:hover {
+  opacity: 0.85;
+}
+
+.secondary-visuals-grid .chart-card {
+  padding: 10px 14px;
+}
+
+.secondary-visuals-grid .chart-header {
+  margin-bottom: 4px;
+}
+
+.secondary-visuals-grid .chart-title {
+  font-size: 0.58rem;
+}
+
+.secondary-visuals-grid .chart-val {
+  font-size: 0.95rem;
+}
+
+/* Action panel header & row styling inside the panel container */
+.scada-action-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(7, 18, 33, 0.9);
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
+  border-radius: 10px;
+  padding: 16px 24px;
+  box-shadow: 0 0 15px rgba(var(--accent-rgb), 0.08), inset 0 0 10px rgba(0, 0, 0, 0.2);
+  margin-top: 10px;
+}
+
+.scada-action-panel-header {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+  width: 100%;
+  padding-bottom: 8px;
+  text-align: center;
+}
+
+.scada-action-buttons-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
 }

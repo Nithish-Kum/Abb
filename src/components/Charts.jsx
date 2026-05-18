@@ -1,4 +1,4 @@
-import { ResponsiveContainer, AreaChart, Area, Tooltip, CartesianGrid } from "recharts";
+import { ResponsiveContainer, AreaChart, Area, Tooltip, CartesianGrid, ReferenceLine } from "recharts";
 
 function Chart({ title, value, data = [], color, warnVal, critVal }) {
 
@@ -46,7 +46,7 @@ function Chart({ title, value, data = [], color, warnVal, critVal }) {
       {/* ✅ FIX: Increased height so visible even in warning */}
       <div style={{ width: "100%", height: "120px" }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+          <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 10, bottom: 5 }}>
 
             <defs>
               <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
@@ -61,6 +61,23 @@ function Chart({ title, value, data = [], color, warnVal, critVal }) {
               vertical={false}
             />
 
+            {warnVal && (
+              <ReferenceLine 
+                y={warnVal} 
+                stroke="var(--yellow)" 
+                strokeDasharray="3 3" 
+                label={{ value: 'WARN', fill: 'var(--yellow)', fontSize: 7, position: 'insideRight', offset: 10 }} 
+              />
+            )}
+            {critVal && (
+              <ReferenceLine 
+                y={critVal} 
+                stroke="var(--red)" 
+                strokeDasharray="3 3" 
+                label={{ value: 'CRIT', fill: 'var(--red)', fontSize: 7, position: 'insideRight', offset: 10 }} 
+              />
+            )}
+
             <Area
               type="monotone"
               dataKey="telemetry"
@@ -69,6 +86,14 @@ function Chart({ title, value, data = [], color, warnVal, critVal }) {
               fill={`url(#${gradId})`}
               isAnimationActive={true}
               animationDuration={600}
+              dot={({ cx, cy, payload }) => {
+                if (critVal && payload.telemetry >= critVal) {
+                  return <circle cx={cx} cy={cy} r={4.5} fill="var(--red)" stroke="#fff" strokeWidth={1} filter="drop-shadow(0 0 5px var(--red))" key={`dot-${cx}-${cy}`} />;
+                } else if (warnVal && payload.telemetry >= warnVal) {
+                  return <circle cx={cx} cy={cy} r={4.5} fill="var(--yellow)" stroke="#fff" strokeWidth={1} filter="drop-shadow(0 0 5px var(--yellow))" key={`dot-${cx}-${cy}`} />;
+                }
+                return null;
+              }}
               style={{
                 filter: `drop-shadow(0 0 4px ${color}80)`
               }}
