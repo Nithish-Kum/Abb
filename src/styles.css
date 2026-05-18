@@ -63,19 +63,18 @@
   --accent: var(--red);
   --accent-rgb: 255, 59, 59;
   --accent-glow: 0 0 25px rgba(255, 59, 59, 0.7);
-  /* Failure: Background effect: radial red gradient (center glow) */
-  background: radial-gradient(circle at 50% 50%, rgba(255, 59, 59, 0.18) 0%, #050101 100%) !important;
-  animation: failureShake 0.4s infinite ease-in-out, failureGlitch 8s infinite alternate;
+  /* Failure: Background effect: Darker high-contrast radial red gradient */
+  background: radial-gradient(circle at 50% 50%, rgba(255, 59, 59, 0.04) 0%, #02060c 100%) !important;
 }
 
-/* Failure card glowing borders overlay */
-.dashboard.red .sensor-card,
-.dashboard.red .chart-card,
-.dashboard.red .gauge-card,
-.dashboard.red .ai-insight,
-.dashboard.red .alert-item,
-.dashboard.red .timeline-card,
-.dashboard.red .eng-section {
+/* Failure card glowing borders overlay (excluding specific manager cards) */
+.dashboard.red .sensor-card.critical,
+.dashboard.red .chart-card:not(.manager-machine-card),
+.dashboard.red .gauge-card:not(.manager-machine-card),
+.dashboard.red .ai-insight:not(.manager-machine-card),
+.dashboard.red .alert-item:not(.manager-machine-card),
+.dashboard.red .timeline-card:not(.manager-machine-card),
+.dashboard.red .eng-section:not(.manager-machine-card) {
   border-color: var(--red) !important;
   box-shadow: 0 0 18px rgba(255, 59, 59, 0.45), inset 0 0 10px rgba(255, 59, 59, 0.15) !important;
 }
@@ -109,13 +108,15 @@
   }
 }
 
-@keyframes redPulse {
+@keyframes cockpitPulse {
   0% {
-    background-color: rgba(255, 59, 59, 0.015);
+    opacity: 0.05;
+    box-shadow: inset 0 0 20px rgba(255, 59, 59, 0.08);
   }
 
   100% {
-    background-color: rgba(255, 59, 59, 0.1);
+    opacity: 0.12;
+    box-shadow: inset 0 0 40px rgba(255, 59, 59, 0.18);
   }
 }
 
@@ -175,14 +176,16 @@
   }
 }
 
-/* Full screen low opacity red emergency pulsing overlay */
+/* Full screen red emergency vignette border (cockpit style HUD) */
 .emergency-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(255, 59, 59, 0.05);
+  border: 2px solid rgba(255, 59, 59, 0.25);
+  background: transparent;
+  /* IMPORTANT */
+  box-shadow: inset 0 0 30px rgba(255, 59, 59, 0.1);
   pointer-events: none;
   z-index: 9998;
-  animation: redPulse 1.2s infinite alternate ease-in-out;
 }
 
 @keyframes borderNeonPulse {
@@ -652,7 +655,8 @@ body::after {
   transition: all var(--transition-normal) cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   position: relative;
-  overflow: visible; /* Required to show tooltips outside the card boundary */
+  overflow: visible;
+  /* Required to show tooltips outside the card boundary */
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
 }
 
@@ -689,13 +693,29 @@ body::after {
 }
 
 @keyframes stripWarnPulse {
-  0% { opacity: 0.35; box-shadow: 0 0 2px var(--yellow); }
-  100% { opacity: 1; box-shadow: 0 0 10px var(--yellow); }
+  0% {
+    opacity: 0.35;
+    box-shadow: 0 0 2px var(--yellow);
+  }
+
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 10px var(--yellow);
+  }
 }
 
 @keyframes stripCritBlink {
-  0%, 100% { opacity: 0.35; box-shadow: 0 0 2px var(--red); }
-  50% { opacity: 1; box-shadow: 0 0 12px var(--red); }
+
+  0%,
+  100% {
+    opacity: 0.35;
+    box-shadow: 0 0 2px var(--red);
+  }
+
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 12px var(--red);
+  }
 }
 
 /* Dynamic status based color changes for card border and values */
@@ -842,13 +862,25 @@ body::after {
 }
 
 @keyframes barFluctuate {
-  0% { transform: scaleY(1); }
-  100% { transform: scaleY(0.75); }
+  0% {
+    transform: scaleY(1);
+  }
+
+  100% {
+    transform: scaleY(0.75);
+  }
 }
 
 @keyframes barSpike {
-  0%, 100% { transform: scaleY(1); }
-  50% { transform: scaleY(1.4) translateY(-1px); }
+
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  50% {
+    transform: scaleY(1.4) translateY(-1px);
+  }
 }
 
 /* ==========================================
@@ -1106,6 +1138,7 @@ body::after {
     transform: translateX(50px);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -1113,8 +1146,15 @@ body::after {
 }
 
 @keyframes criticalPulse {
-  0% { border-color: rgba(255, 59, 59, 0.4); box-shadow: 0 0 10px rgba(255, 59, 59, 0.15); }
-  100% { border-color: rgba(255, 59, 59, 1); box-shadow: 0 0 20px rgba(255, 59, 59, 0.35); }
+  0% {
+    border-color: rgba(255, 59, 59, 0.4);
+    box-shadow: 0 0 10px rgba(255, 59, 59, 0.15);
+  }
+
+  100% {
+    border-color: rgba(255, 59, 59, 1);
+    box-shadow: 0 0 20px rgba(255, 59, 59, 0.35);
+  }
 }
 
 .alert-tag {
@@ -1931,16 +1971,47 @@ body.emergency-mode .prediction-banner {
 
 /* 1. Dramatic SCADA failure screen shake */
 @keyframes scadaShake {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  10% { transform: translate(-2px, -1.5px) rotate(-0.05deg); }
-  20% { transform: translate(-3px, 0px) rotate(0.05deg); }
-  30% { transform: translate(0px, -2px) rotate(0deg); }
-  40% { transform: translate(2.5px, 1.5px) rotate(0.05deg); }
-  50% { transform: translate(1px, 2px) rotate(-0.05deg); }
-  60% { transform: translate(-1.5px, 1px) rotate(0deg); }
-  70% { transform: translate(2px, -1px) rotate(-0.05deg); }
-  80% { transform: translate(-2px, 2px) rotate(0.05deg); }
-  90% { transform: translate(1.5px, -2px) rotate(0deg); }
+
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+
+  10% {
+    transform: translate(-2px, -1.5px) rotate(-0.05deg);
+  }
+
+  20% {
+    transform: translate(-3px, 0px) rotate(0.05deg);
+  }
+
+  30% {
+    transform: translate(0px, -2px) rotate(0deg);
+  }
+
+  40% {
+    transform: translate(2.5px, 1.5px) rotate(0.05deg);
+  }
+
+  50% {
+    transform: translate(1px, 2px) rotate(-0.05deg);
+  }
+
+  60% {
+    transform: translate(-1.5px, 1px) rotate(0deg);
+  }
+
+  70% {
+    transform: translate(2px, -1px) rotate(-0.05deg);
+  }
+
+  80% {
+    transform: translate(-2px, 2px) rotate(0.05deg);
+  }
+
+  90% {
+    transform: translate(1.5px, -2px) rotate(0deg);
+  }
 }
 
 .dashboard.red {
@@ -2192,9 +2263,17 @@ body.emergency-mode .prediction-banner {
   animation: fadeInUp 0.3s ease forwards;
 }
 
-.scada-log-item.info { border-left: 3px solid var(--blue); }
-.scada-log-item.warn { border-left: 3px solid var(--yellow); }
-.scada-log-item.crit { border-left: 3px solid var(--red); }
+.scada-log-item.info {
+  border-left: 3px solid var(--blue);
+}
+
+.scada-log-item.warn {
+  border-left: 3px solid var(--yellow);
+}
+
+.scada-log-item.crit {
+  border-left: 3px solid var(--red);
+}
 
 .scada-log-meta {
   color: var(--text-muted);
@@ -2205,12 +2284,11 @@ body.emergency-mode .prediction-banner {
 .scada-alarm-popup-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.15);
   z-index: 100000;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(8px);
 }
 
 .scada-alarm-popup {
@@ -2226,8 +2304,15 @@ body.emergency-mode .prediction-banner {
 }
 
 @keyframes scadaModalPulse {
-  0% { border-color: rgba(255, 59, 59, 0.5); box-shadow: 0 0 15px rgba(255, 59, 59, 0.2); }
-  100% { border-color: rgba(255, 59, 59, 1); box-shadow: 0 0 35px rgba(255, 59, 59, 0.5); }
+  0% {
+    border-color: rgba(255, 59, 59, 0.5);
+    box-shadow: 0 0 15px rgba(255, 59, 59, 0.2);
+  }
+
+  100% {
+    border-color: rgba(255, 59, 59, 1);
+    box-shadow: 0 0 35px rgba(255, 59, 59, 0.5);
+  }
 }
 
 .scada-alarm-popup-title {
@@ -2303,6 +2388,7 @@ body.emergency-mode .prediction-banner {
   0% {
     box-shadow: 0 0 10px rgba(255, 59, 59, 0.2), inset 0 0 8px rgba(255, 59, 59, 0.05);
   }
+
   100% {
     box-shadow: 0 0 22px rgba(255, 59, 59, 0.5), inset 0 0 14px rgba(255, 59, 59, 0.15);
   }
@@ -2422,6 +2508,7 @@ body.emergency-mode .prediction-banner {
     border-color: rgba(255, 59, 59, 0.4);
     box-shadow: 0 0 5px rgba(255, 59, 59, 0.1);
   }
+
   100% {
     background: rgba(255, 59, 59, 0.25);
     border-color: rgba(255, 59, 59, 1);
@@ -2525,4 +2612,496 @@ body.emergency-mode .prediction-banner {
   justify-content: center;
   gap: 16px;
   width: 100%;
+}
+
+/* ==========================================
+   OPERATOR SELECTION SCREEN STYLING
+   ========================================== */
+.selection-screen-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  padding: 40px 20px;
+  position: relative;
+  z-index: 10;
+}
+
+.selection-card {
+  background: rgba(7, 18, 33, 0.95);
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
+  border-radius: 12px;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.6), 0 0 25px rgba(var(--accent-rgb), 0.1);
+  padding: 40px;
+  max-width: 1100px;
+  width: 100%;
+  text-align: center;
+  backdrop-filter: blur(15px);
+}
+
+.selection-glow-logo {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  text-shadow: 0 0 10px var(--accent);
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.selection-card h2 {
+  font-family: var(--font-title);
+  font-size: 1.8rem;
+  color: var(--text-main);
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  font-weight: 800;
+}
+
+.selection-card p {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+  margin-bottom: 40px;
+}
+
+.selection-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.selection-item-card {
+  background: rgba(10, 22, 40, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 24px 20px;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+}
+
+.selection-item-glow-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  transition: background 0.3s;
+}
+
+.selection-item-header {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.selection-item-title {
+  font-family: var(--font-title);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: 0.02em;
+}
+
+.selection-item-status {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-main);
+}
+
+.selection-item-risk {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-main);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 10px;
+}
+
+.selection-status-badge {
+  font-weight: 800;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+}
+
+.selection-item-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 8px;
+  letter-spacing: 0.1em;
+  transition: all 0.3s;
+  width: 100%;
+  text-align: center;
+}
+
+/* Status variants for selection items */
+.selection-item-card.normal {
+  border-color: rgba(0, 230, 118, 0.15);
+}
+
+.selection-item-card.normal .selection-item-glow-strip {
+  background: var(--green);
+}
+
+.selection-item-card.normal .selection-status-badge {
+  color: var(--green);
+}
+
+.selection-item-card.normal:hover {
+  border-color: var(--green);
+  box-shadow: 0 0 20px rgba(0, 230, 118, 0.25);
+  transform: translateY(-4px);
+}
+
+.selection-item-card.normal:hover .selection-item-btn {
+  border-color: var(--green);
+  color: var(--green);
+  background: rgba(0, 230, 118, 0.05);
+}
+
+.selection-item-card.warn {
+  border-color: rgba(255, 170, 0, 0.25);
+  animation: selectionWarnPulse 1.8s infinite alternate ease-in-out;
+}
+
+.selection-item-card.warn .selection-item-glow-strip {
+  background: var(--yellow);
+}
+
+.selection-item-card.warn .selection-status-badge {
+  color: var(--yellow);
+}
+
+.selection-item-card.warn:hover {
+  border-color: var(--yellow);
+  box-shadow: 0 0 25px rgba(255, 170, 0, 0.4);
+  transform: translateY(-4px);
+}
+
+.selection-item-card.warn:hover .selection-item-btn {
+  border-color: var(--yellow);
+  color: var(--yellow);
+  background: rgba(255, 170, 0, 0.05);
+}
+
+.selection-item-card.critical {
+  border-color: rgba(255, 59, 59, 0.35);
+  animation: selectionCritBlink 1.2s infinite ease-in-out;
+}
+
+.selection-item-card.critical .selection-item-glow-strip {
+  background: var(--red);
+}
+
+.selection-item-card.critical .selection-status-badge {
+  color: var(--red);
+}
+
+.selection-item-card.critical:hover {
+  border-color: var(--red);
+  box-shadow: 0 0 30px rgba(255, 59, 59, 0.5);
+  transform: translateY(-4px);
+}
+
+.selection-item-card.critical:hover .selection-item-btn {
+  border-color: var(--red);
+  color: var(--red);
+  background: rgba(255, 59, 59, 0.05);
+}
+
+@keyframes selectionWarnPulse {
+  0% {
+    box-shadow: 0 0 5px rgba(255, 170, 0, 0.05);
+  }
+
+  100% {
+    box-shadow: 0 0 15px rgba(255, 170, 0, 0.25);
+  }
+}
+
+@keyframes selectionCritBlink {
+
+  0%,
+  100% {
+    box-shadow: 0 0 5px rgba(255, 59, 59, 0.05);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgba(255, 59, 59, 0.35);
+  }
+}
+
+/* ==========================================
+   MANAGER VIEW EXECUTIVE GRID
+   ========================================== */
+.manager-grid-header {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-top: 10px;
+}
+
+.manager-machines-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  width: 100%;
+}
+
+/* Extreme Risk Alert HUD Banner */
+.focus-mode {
+  position: fixed;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: rgba(255, 59, 59, 0.95);
+  border: 1px solid var(--red);
+  color: var(--text-main);
+  font-family: var(--font-title);
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  padding: 8px 30px;
+  border-radius: 4px;
+  box-shadow: 0 0 30px rgba(255, 59, 59, 0.6);
+  pointer-events: none;
+  animation: bannerPulse 1s infinite alternate cubic-bezier(0.4, 0, 0.6, 1);
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes bannerPulse {
+  0% {
+    opacity: 0.85;
+    transform: translateX(-50%) scale(0.98);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.02);
+  }
+}
+
+/* ==========================================
+   MANAGER CARD CIRCULAR GAUGE & HUD LAYOUT
+   ========================================== */
+.manager-machine-card-body {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+.manager-gauge-container {
+  position: relative;
+  flex: 0 0 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.manager-circular-gauge {
+  width: 110px;
+  height: 110px;
+}
+
+.manager-circular-gauge circle {
+  fill: none;
+  stroke-width: 8;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  transition: stroke-dashoffset 0.8s ease-in-out;
+}
+
+.manager-circular-gauge .bg-circle {
+  stroke: rgba(255, 255, 255, 0.04);
+}
+
+.manager-circular-gauge .val-circle {
+  stroke-dasharray: 276.4;
+  /* 2 * PI * 44 radius = ~276.4 */
+}
+
+.manager-gauge-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  width: 100%;
+}
+
+.manager-gauge-percentage {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.manager-gauge-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.44rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.manager-stats-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-grow: 1;
+}
+
+.manager-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+}
+
+.manager-stat-name {
+  font-family: var(--font-sans);
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.manager-stat-val {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.manager-insight-footer {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  text-align: center;
+  width: 100%;
+  margin-top: 4px;
+  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s;
+}
+
+.manager-machine-card.failure .manager-insight-footer {
+  background: rgba(255, 59, 59, 0.06);
+  border-color: rgba(255, 59, 59, 0.25);
+  color: var(--red);
+  box-shadow: 0 0 10px rgba(255, 59, 59, 0.08);
+}
+
+.manager-machine-card.warning .manager-insight-footer {
+  background: rgba(255, 170, 0, 0.05);
+  border-color: rgba(255, 170, 0, 0.2);
+  color: var(--yellow);
+  box-shadow: 0 0 8px rgba(255, 170, 0, 0.05);
+}
+
+.manager-machine-card.normal .manager-insight-footer {
+  background: rgba(0, 230, 118, 0.04);
+  border-color: rgba(0, 230, 118, 0.12);
+  color: var(--green);
+}
+
+/* ==========================================
+   GLOBAL TOP ALERT BAR STYLING
+   ========================================== */
+.global-top-alert-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 24px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  z-index: 999;
+  position: relative;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  animation: alertBarPulse 1.5s infinite alternate ease-in-out;
+}
+
+.global-top-alert-bar.critical {
+  background: rgba(255, 59, 59, 0.95);
+  color: #ffffff;
+  border-bottom: 2px solid #ffffff;
+}
+
+.global-top-alert-bar.warning {
+  background: rgba(255, 170, 0, 0.95);
+  color: #050a12;
+  border-bottom: 2px solid #050a12;
+}
+
+.alert-bar-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alert-bar-title {
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
+.alert-bar-message {
+  font-weight: 500;
+  opacity: 0.95;
+}
+
+.alert-bar-ack {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid currentColor;
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.alert-bar-ack:hover {
+  background: #ffffff;
+  color: #050a12;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+@keyframes alertBarPulse {
+  0% {
+    filter: brightness(0.95);
+  }
+
+  100% {
+    filter: brightness(1.1);
+  }
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-function Topbar({ role, mode }) {
+function Topbar({ role, mode, selectedMachineId, onSwitchMachine }) {
   const [timeStr, setTimeStr] = useState("");
 
   // Live high-precision SCADA clock
@@ -46,6 +46,20 @@ function Topbar({ role, mode }) {
       </div>
       
       <div className="topbar-right">
+        {role === "operator" && selectedMachineId && (
+          <button 
+            className="logout-btn" 
+            onClick={onSwitchMachine} 
+            style={{ 
+              borderColor: "rgba(var(--accent-rgb), 0.4)", 
+              color: "var(--accent)", 
+              boxShadow: "0 0 6px rgba(var(--accent-rgb), 0.15)",
+              marginRight: "8px"
+            }}
+          >
+            📂 SWITCH STATION
+          </button>
+        )}
         <div className="role-badge">{role}</div>
         <div className="clock" style={{ fontFamily: "var(--font-mono)", fontSize: "0.78rem" }}>
           🕐 {timeStr || "00:00:00"}

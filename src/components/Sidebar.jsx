@@ -5,7 +5,7 @@ function Sidebar({ role, sensors }) {
   // Compute aggregated stats for Manager View
   const activeWarnings = sensorArray.filter(s => s.current >= s.warn && s.current < s.critical).length;
   const activeCriticals = sensorArray.filter(s => s.current >= s.critical).length;
-  const avgTemp = sensorArray.find(s => s.id === "motor")?.current || 70;
+  const avgTemp = sensorArray.find(s => s.id === "temp")?.current || 70;
 
   let healthScore = 100;
   sensorArray.forEach(s => {

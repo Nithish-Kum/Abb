@@ -42,7 +42,7 @@ function LinearSCADAIndicator({ title, value, max = 100, unit = "%", warnLimit =
   );
 }
 
-function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
+function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, machinesData, alerts = [], ackAlert }) {
   const isOperator = role === "operator";
   const isManager = role === "manager";
   const isEngineer = role === "engineer";
@@ -53,7 +53,6 @@ function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
 
   // Engineer view states
   const [activeTab, setActiveTab] = useState("trends"); // trends | diagnostics | health | history
-  const [selectedChannel, setSelectedChannel] = useState("motor"); // motor | voltage | pressure | flow | vibration | current
   const [logFilter, setLogFilter] = useState("all"); // all | info | warning | critical
 
   // Reset alarm dismissed state if status moves away from failure
@@ -63,21 +62,31 @@ function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
     }
   }, [mode]);
 
-  // Compute telemetry values
-  const tempVal = sensors.motor.current;
-  const vibVal = sensors.vibration.current;
-  const pressVal = sensors.pressure.current;
-  const voltVal = sensors.voltage.current;
-  const flowVal = sensors.flow.current;
-  const currVal = sensors.current.current;
+  // Bind active sensors dynamically
+  const activeMachine = selectedMachineId ? machinesData[selectedMachineId] : null;
+  const sensors = activeMachine ? activeMachine.sensors : (machinesData.motor ? machinesData.motor.sensors : {});
 
-  // Calculate system risk factor
-  let calculatedRisk = 0;
-  if (tempVal > 75) calculatedRisk += 30;
-  if (vibVal > 1.2) calculatedRisk += 25;
-  if (pressVal > 85) calculatedRisk += 20;
-  if (voltVal > 200) calculatedRisk += 15;
-  const currentRisk = Math.min(calculatedRisk, 100);
+  // Safe telemetry sensor fallbacks
+  const tempSensor = sensors.temp || { current: 70, warn: 75, critical: 85, max: 120, history: [] };
+  const tempVal = tempSensor.current;
+  
+  const vibSensor = sensors.vibration || { current: 1.5, warn: 1.2, critical: 2.0, max: 5, history: [] };
+  const vibVal = vibSensor.current;
+  
+  const pressSensor = sensors.pressure || { current: 80, warn: 85, critical: 100, max: 150, history: [] };
+  const pressVal = pressSensor.current;
+  
+  const voltSensor = sensors.voltage || { current: 185, warn: 200, critical: 220, max: 250, history: [] };
+  const voltVal = voltSensor.current;
+  
+  const flowSensor = sensors.flow || { current: 4.2, warn: 3.5, critical: 2.5, max: 10, history: [] };
+  const flowVal = flowSensor.current;
+  
+  const currSensor = sensors.current || { current: 13, warn: 22, critical: 26, max: 30, history: [] };
+  const currVal = currSensor.current;
+
+  // Active risk of current selected segment
+  const currentRisk = activeMachine ? activeMachine.risk : 0;
 
   // Computed manager summary health metric
   let healthScore = 100;
@@ -88,7 +97,7 @@ function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
   });
   healthScore = Math.max(30, healthScore);
 
-  // Engineer logs setup
+  // Engineer log buffer dynamic logs
   const baseLogs = [
     { type: "info", time: "16:21:05", module: "SYS", msg: "Primary power sync completed. Synchroscope aligned." },
     { type: "info", time: "16:21:40", module: "SYS", msg: "Modbus connection re-established with Field Cabinet 4." },
@@ -97,13 +106,13 @@ function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
   ];
 
   const dynamicLogs = [];
-  if (tempVal > sensors.motor.warn) {
-    dynamicLogs.push({ type: "warn", time: "16:22:32", module: "THERMAL", msg: `WARNING: Motor Temp elevated at ${tempVal.toFixed(1)}°C.` });
+  if (tempVal > tempSensor.warn) {
+    dynamicLogs.push({ type: "warn", time: "16:22:32", module: "THERMAL", msg: `WARNING: System Temp elevated at ${tempVal.toFixed(1)}°C.` });
   }
-  if (tempVal > sensors.motor.critical) {
+  if (tempVal > tempSensor.critical) {
     dynamicLogs.push({ type: "crit", time: "16:22:35", module: "THERMAL", msg: `CRITICAL: Thermal overload breakdown active at ${tempVal.toFixed(1)}°C!` });
   }
-  if (pressVal > sensors.pressure.warn) {
+  if (pressVal > pressSensor.warn) {
     dynamicLogs.push({ type: "warn", time: "16:22:38", module: "PRESSURE", msg: `WARNING: System Pressure high at ${pressVal.toFixed(1)} PSI.` });
   }
 
@@ -118,7 +127,6 @@ function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
 
   // Render Operator view layout
   const renderOperatorView = () => {
-    // 1. Find the active alert for the Alert Strip
     const criticalAlerts = alerts.filter(a => a.type === "critical");
     const nonCriticalAlerts = alerts.filter(a => a.type === "warning" || a.type === "info");
     const activeAlert = criticalAlerts.length > 0 
@@ -150,12 +158,12 @@ function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
         {/* Real-time Operator grid: Main Recharts area chart */}
         <div className="chart-grid" style={{ display: "grid", gridTemplateColumns: "1fr", gap: "20px" }}>
           <Chart
-            title="Motor Core Temperature (Primary Focus)"
+            title={`${activeMachine?.name || "SYSTEM"} TEMPERATURE (PRIMARY FOCUS)`}
             value={`${tempVal.toFixed(1)}°C`}
-            data={sensors.motor.history}
+            data={tempSensor.history}
             color="var(--red)"
-            warnVal={sensors.motor.warn}
-            critVal={sensors.motor.critical}
+            warnVal={tempSensor.warn}
+            critVal={tempSensor.critical}
           />
         </div>
 
@@ -165,27 +173,27 @@ function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
           <div className="secondary-visuals-grid">
             <Chart
               title="Line Voltage"
-              value={`${sensors.voltage.current.toFixed(1)}V`}
-              data={sensors.voltage.history}
+              value={`${voltVal.toFixed(1)}V`}
+              data={voltSensor.history}
               color="var(--blue)"
-              warnVal={sensors.voltage.warn}
-              critVal={sensors.voltage.critical}
+              warnVal={voltSensor.warn}
+              critVal={voltSensor.critical}
             />
             <Chart
               title="Core Pressure"
-              value={`${sensors.pressure.current.toFixed(1)} PSI`}
-              data={sensors.pressure.history}
+              value={`${pressVal.toFixed(1)} PSI`}
+              data={pressSensor.history}
               color="var(--yellow)"
-              warnVal={sensors.pressure.warn}
-              critVal={sensors.pressure.critical}
+              warnVal={pressSensor.warn}
+              critVal={pressSensor.critical}
             />
             <Chart
               title="Coolant Flow"
-              value={`${sensors.flow.current.toFixed(2)} L/s`}
-              data={sensors.flow.history}
+              value={`${flowVal.toFixed(2)} L/s`}
+              data={flowSensor.history}
               color="var(--green)"
-              warnVal={sensors.flow.warn}
-              critVal={sensors.flow.critical}
+              warnVal={flowSensor.warn}
+              critVal={flowSensor.critical}
             />
           </div>
         </div>
@@ -205,7 +213,6 @@ function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
               className="action-panel-btn ack" 
               onClick={() => {
                 setAlarmDismissed(true);
-                // Ack all active alerts
                 alerts.forEach(a => ackAlert(a.id));
               }}
             >
@@ -239,7 +246,7 @@ function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
             <div className="scada-alarm-popup">
               <div className="scada-alarm-popup-title">🚨 CRITICAL SCADA EMERGENCY ALARM</div>
               <div className="scada-alarm-popup-text">
-                SYSTEM BREACH: Active cascade meltdown detected in Rotor Stator winding. Motor Core temperature exceeds {tempVal.toFixed(1)}°C threshold. Automated suppression loops initialized.
+                SYSTEM BREACH: Active cascade meltdown detected in Rotor Stator winding. Core temperature exceeds caution limits. Automated suppression loops initialized.
               </div>
               <button 
                 className="scada-alarm-popup-btn" 
@@ -257,11 +264,47 @@ function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
     );
   };
 
-  // Render Engineer view layout
+  // Render Engineer view layout with tabs and target machine switcher
   const renderEngineerView = () => {
     return (
       <div className="center-body" style={{ flex: "1 0 auto", display: "flex", flexDirection: "column", gap: "16px", overflowY: "visible" }}>
         
+        {/* Sleek ENGINEER Machine switcher tabs */}
+        <div className="engineer-machine-switcher fade-in" style={{ display: "flex", gap: "10px", marginBottom: "5px", borderBottom: "1px solid rgba(255, 255, 255, 0.05)", paddingBottom: "12px", flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.62rem", color: "var(--text-muted)", alignSelf: "center", marginRight: "10px" }}>
+            📡 ACTIVE TARGET SWITCHER:
+          </span>
+          {Object.keys(machinesData).map(mId => {
+            const m = machinesData[mId];
+            const isActive = selectedMachineId === mId;
+            let neonColor = "var(--green)";
+            if (m.mode === "failure") neonColor = "var(--red)";
+            else if (m.mode === "warning") neonColor = "var(--yellow)";
+            
+            return (
+              <button
+                key={mId}
+                className={`scada-action-tab ${isActive ? "active" : ""}`}
+                onClick={() => setSelectedMachineId(mId)}
+                style={{
+                  border: `1px solid ${isActive ? neonColor : "rgba(255,255,255,0.08)"}`,
+                  boxShadow: isActive ? `0 0 10px ${neonColor}` : "none",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "0.65rem",
+                  padding: "5px 12px",
+                  borderRadius: "4px",
+                  background: isActive ? `rgba(${m.mode === "failure" ? "255,59,59" : m.mode === "warning" ? "255,170,0" : "0,230,118"}, 0.1)` : "transparent",
+                  color: isActive ? neonColor : "var(--text-muted)",
+                  cursor: "pointer",
+                  transition: "all 0.3s"
+                }}
+              >
+                ◆ {m.name} ({m.mode.toUpperCase()})
+              </button>
+            );
+          })}
+        </div>
+
         {/* Navigation Tab Menu */}
         <div className="eng-tabs">
           <button className={`eng-tab ${activeTab === "trends" ? "active" : ""}`} onClick={() => setActiveTab("trends")}>📈 LIVE TRENDS</button>
@@ -274,52 +317,52 @@ function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
         {activeTab === "trends" && (
           <div className="chart-grid fade-in">
             <Chart
-              title="Motor Core Temperature"
+              title={`${activeMachine?.name || "MOTOR"} TEMPERATURE`}
               value={`${tempVal.toFixed(1)}°C`}
-              data={sensors.motor.history}
+              data={tempSensor.history}
               color="var(--red)"
-              warnVal={sensors.motor.warn}
-              critVal={sensors.motor.critical}
+              warnVal={tempSensor.warn}
+              critVal={tempSensor.critical}
             />
             <Chart
               title="System Main Voltage"
               value={`${voltVal.toFixed(1)}V`}
-              data={sensors.voltage.history}
+              data={voltSensor.history}
               color="var(--blue)"
-              warnVal={sensors.voltage.warn}
-              critVal={sensors.voltage.critical}
+              warnVal={voltSensor.warn}
+              critVal={voltSensor.critical}
             />
             <Chart
               title="System Core Pressure"
               value={`${pressVal.toFixed(1)} PSI`}
-              data={sensors.pressure.history}
+              data={pressSensor.history}
               color="var(--yellow)"
-              warnVal={sensors.pressure.warn}
-              critVal={sensors.pressure.critical}
+              warnVal={pressSensor.warn}
+              critVal={pressSensor.critical}
             />
             <Chart
               title="Coolant Flow Rate"
               value={`${flowVal.toFixed(2)} L/s`}
-              data={sensors.flow.history}
+              data={flowSensor.history}
               color="var(--green)"
-              warnVal={sensors.flow.warn}
-              critVal={sensors.flow.critical}
+              warnVal={flowSensor.warn}
+              critVal={flowSensor.critical}
             />
             <Chart
               title="Rotor Vibration"
               value={`${vibVal.toFixed(2)}g`}
-              data={sensors.vibration.history}
+              data={vibSensor.history}
               color="var(--accent)"
-              warnVal={sensors.vibration.warn}
-              critVal={sensors.vibration.critical}
+              warnVal={vibSensor.warn}
+              critVal={vibSensor.critical}
             />
             <Chart
               title="Induction Current"
               value={`${currVal.toFixed(1)}A`}
-              data={sensors.current.history}
+              data={currSensor.history}
               color="var(--purple)"
-              warnVal={sensors.current.warn}
-              critVal={sensors.current.critical}
+              warnVal={currSensor.warn}
+              critVal={currSensor.critical}
             />
           </div>
         )}
@@ -337,12 +380,12 @@ function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
                 critLimit={70}
               />
               <Gauge
-                title="Motor Temp Instrument"
+                title="Operational Temp Instrument"
                 value={tempVal}
-                max={120}
+                max={tempSensor.max}
                 unit="°C"
-                warnLimit={sensors.motor.warn}
-                critLimit={sensors.motor.critical}
+                warnLimit={tempSensor.warn}
+                critLimit={tempSensor.critical}
               />
             </div>
 
@@ -364,25 +407,25 @@ function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
                   <tr>
                     <td>Secondary Rotor Shaft</td>
                     <td className="status-good">ONLINE / NORMAL</td>
-                    <td>{((vibVal / 3) * 100).toFixed(0)}%</td>
+                    <td>{((vibVal / vibSensor.max) * 100).toFixed(0)}%</td>
                     <td>12 ms</td>
                     <td>99.98%</td>
                   </tr>
                   <tr>
                     <td>Cooling Liquid Circuit</td>
-                    <td className={tempVal > 85 ? "status-bad" : tempVal > 75 ? "status-warn" : "status-good"}>
-                      {tempVal > 85 ? "CRIT OVERHEAT" : tempVal > 75 ? "TEMP WARNING" : "ONLINE / NOMINAL"}
+                    <td className={tempVal > tempSensor.critical ? "status-bad" : tempVal > tempSensor.warn ? "status-warn" : "status-good"}>
+                      {tempVal > tempSensor.critical ? "CRIT OVERHEAT" : tempVal > tempSensor.warn ? "TEMP WARNING" : "ONLINE / NOMINAL"}
                     </td>
-                    <td>{((tempVal / 120) * 100).toFixed(0)}%</td>
+                    <td>{((tempVal / tempSensor.max) * 100).toFixed(0)}%</td>
                     <td>35 ms</td>
                     <td>99.42%</td>
                   </tr>
                   <tr>
                     <td>Fluid Intake Valve</td>
-                    <td className={pressVal > 120 ? "status-bad" : "status-good"}>
-                      {pressVal > 120 ? "VALVE OVERPRESSURE" : "ONLINE / NOMINAL"}
+                    <td className={pressVal > pressSensor.critical ? "status-bad" : "status-good"}>
+                      {pressVal > pressSensor.critical ? "VALVE OVERPRESSURE" : "ONLINE / NOMINAL"}
                     </td>
-                    <td>{((pressVal / 150) * 100).toFixed(0)}%</td>
+                    <td>{((pressVal / pressSensor.max) * 100).toFixed(0)}%</td>
                     <td>4 ms</td>
                     <td>99.91%</td>
                   </tr>
@@ -395,10 +438,10 @@ function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
         {/* Tab 3: Health - High Impact Gauges utilized */}
         {activeTab === "health" && (
           <div className="fade-in" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-            <Gauge title="Rotor Shaft Integrity" value={100 - (vibVal / 5) * 100} max={100} unit="%" warnLimit={30} critLimit={15} />
-            <Gauge title="Coolant Pump Head" value={(flowVal / 10) * 100} max={100} unit="%" warnLimit={35} critLimit={20} />
-            <Gauge title="Intake Valve Margin" value={100 - (pressVal / 150) * 100} max={100} unit="%" warnLimit={40} critLimit={25} />
-            <Gauge title="Winding Energy Factor" value={100 - (currVal / 30) * 100} max={100} unit="%" warnLimit={40} critLimit={20} />
+            <Gauge title="Rotor Shaft Integrity" value={100 - (vibVal / vibSensor.max) * 100} max={100} unit="%" warnLimit={30} critLimit={15} />
+            <Gauge title="Coolant Pump Head" value={(flowVal / flowSensor.max) * 100} max={100} unit="%" warnLimit={35} critLimit={20} />
+            <Gauge title="Intake Valve Margin" value={100 - (pressVal / pressSensor.max) * 100} max={100} unit="%" warnLimit={40} critLimit={25} />
+            <Gauge title="Winding Energy Factor" value={100 - (currVal / currSensor.max) * 100} max={100} unit="%" warnLimit={40} critLimit={20} />
           </div>
         )}
 
@@ -409,7 +452,7 @@ function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
           </div>
         )}
 
-        {/* Engineering log filter section (always rendered for deep diagnostics) */}
+        {/* Engineering log filter section */}
         <div className="eng-section fade-in" style={{ marginTop: "10px" }}>
           <div className="gauge-title" style={{ marginBottom: "12px", borderBottom: "none" }}>
             ⚙️ SCADA TELEMETRY LOG BUFFER
@@ -441,192 +484,229 @@ function CenterPanel({ role, mode, sensors, alerts = [], ackAlert }) {
     );
   };
 
-  // Render Manager view layout
+  // Render Manager view layout: Executive Dashboard showing ALL machines concurrently
   const renderManagerView = () => {
     return (
       <div className="center-body" style={{ flex: "1 0 auto", display: "flex", flexDirection: "column", gap: "16px", overflowY: "visible" }}>
         
-        {/* TOP: KPI Summary Block */}
-        <div className="manager-kpi">
+        {/* Top Operational Status KPI strip */}
+        <div className="manager-kpi" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
           <div className="kpi-card fade-in">
-            <span className="kpi-val" style={{ color: "var(--green)" }}>99.78%</span>
+            <span className="kpi-val" style={{ color: "var(--green)" }}>99.98%</span>
             <div className="kpi-label">GRID RUNTIME UPTIME</div>
           </div>
           <div className="kpi-card fade-in" style={{ animationDelay: "0.05s" }}>
             <span className="kpi-val" style={{ color: "var(--yellow)" }}>
-              {mode.toLowerCase() === "failure" ? "3" : mode.toLowerCase() === "warning" ? "1" : "0"}
+              {Object.values(machinesData).filter(m => m.mode === "failure").length}
             </span>
-            <div className="kpi-label">ACTIVE SEVERE FAULTS</div>
+            <div className="kpi-label">ACTIVE SEVERE FAILURES</div>
           </div>
           <div className="kpi-card fade-in" style={{ animationDelay: "0.1s" }}>
-            <span className="kpi-val" style={{ color: "var(--blue)" }}>94.2%</span>
-            <div className="kpi-label">AI PREDICTIVE CONFIDENCE</div>
+            <span className="kpi-val" style={{ color: "var(--blue)" }}>95.6%</span>
+            <div className="kpi-label">AI PREDICTIVE RISK SYNCS</div>
           </div>
           <div className="kpi-card fade-in" style={{ animationDelay: "0.15s" }}>
-            <span className="kpi-val" style={{ color: "var(--green)" }}>1.2s</span>
-            <div className="kpi-label">OPERATOR RESPONSE SPEED</div>
+            <span className="kpi-val" style={{ color: "var(--green)" }}>1.1s</span>
+            <div className="kpi-label">AVERAGE RESPONSE LATENCY</div>
           </div>
         </div>
 
-        {/* MIDDLE-TOP: Max 2 circular gauges for high impact */}
-        <div className="gauge-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-          <Gauge
-            title="System Risk Score"
-            value={currentRisk}
-            max={100}
-            unit="%"
-            warnLimit={40}
-            critLimit={70}
-          />
-          <Gauge
-            title="Overall Health Index"
-            value={healthScore}
-            max={100}
-            unit="%"
-            warnLimit={45}
-            critLimit={35}
-          />
+        {/* 📊 EXECUTIVE GRID: MULTI-MACHINE MONITORS */}
+        <div className="manager-grid-header fade-in">
+          ◆ EXECUTIVE PLANT MONITORS (ALL MACHINERY ACTIVE SEGMENTS)
         </div>
 
-        {/* MIDDLE: CENTRALIZED PLANT CORE METRICS GRID PANEL */}
-        <div className="eng-section fade-in">
-          <div className="gauge-title" style={{ marginBottom: "16px", borderBottom: "none" }}>
-            ◆ CENTRALIZED PLANT CORE METRICS
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
+        <div className="manager-machines-grid fade-in">
+          {Object.keys(machinesData).map(mId => {
+            const m = machinesData[mId];
+            const mSensors = m.sensors;
+            const tempSens = mSensors.temp || { current: 0, warn: 0, critical: 0, history: [] };
+            const pressSens = mSensors.pressure || { current: 0, warn: 0, critical: 0, history: [] };
+            const currSens = mSensors.current || { current: 0, warn: 0, critical: 0, history: [] };
+
+            // Dynamic card styling based on live active alerts for this machine segment
+            const machineAlerts = alerts.filter(a => a.machineId === mId);
+            const hasCriticalAlert = machineAlerts.some(a => a.type === "critical");
+            const hasWarningAlert = machineAlerts.some(a => a.type === "warning");
+
+            let activeMode = m.mode;
+            if (hasCriticalAlert) {
+              activeMode = "failure";
+            } else if (hasWarningAlert) {
+              activeMode = "warning";
+            }
+
+            let borderNeon = "rgba(0, 230, 118, 0.15)";
+            let backgroundGlow = "rgba(0, 0, 0, 0.2)";
+            let textGlow = "var(--green)";
             
-            <div className="kpi-card" style={{ padding: "16px" }}>
-              <div className="kpi-label">MOTOR TEMP</div>
-              <div className="kpi-val" style={{ fontSize: "1.45rem", color: tempVal >= sensors.motor.critical ? "var(--red)" : tempVal >= sensors.motor.warn ? "var(--yellow)" : "var(--green)" }}>
-                {tempVal.toFixed(1)}°C
-              </div>
-              <div style={{ fontSize: "0.58rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                LIMIT: {sensors.motor.critical}°C MAX
-              </div>
-            </div>
+            if (activeMode === "failure") {
+              borderNeon = "var(--red)";
+              backgroundGlow = "rgba(255, 59, 59, 0.05)";
+              textGlow = "var(--red)";
+            } else if (activeMode === "warning") {
+              borderNeon = "var(--yellow)";
+              backgroundGlow = "rgba(255, 170, 0, 0.05)";
+              textGlow = "var(--yellow)";
+            }
 
-            <div className="kpi-card" style={{ padding: "16px" }}>
-              <div className="kpi-label">LINE VOLTAGE</div>
-              <div className="kpi-val" style={{ fontSize: "1.45rem", color: voltVal >= sensors.voltage.critical ? "var(--red)" : voltVal >= sensors.voltage.warn ? "var(--yellow)" : "var(--green)" }}>
-                {voltVal.toFixed(1)}V
-              </div>
-              <div style={{ fontSize: "0.58rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                LIMIT: {sensors.voltage.critical}V MAX
-              </div>
-            </div>
+            return (
+              <div 
+                key={mId} 
+                className={`manager-machine-card ${activeMode} fade-in`}
+                style={{
+                  background: `rgba(7, 18, 33, 0.9)`,
+                  border: `1px solid ${borderNeon}`,
+                  boxShadow: activeMode !== "normal" ? `0 0 25px ${borderNeon}, inset 0 0 10px ${backgroundGlow}` : "inset 0 0 10px rgba(0, 0, 0, 0.2)",
+                  borderRadius: "8px",
+                  padding: "16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                  transition: "all 0.5s cubic-bezier(0.16, 1, 0.3, 1)"
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "8px" }}>
+                  <div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.55rem", color: "var(--text-muted)" }}>STATION segment</div>
+                    <div style={{ fontFamily: "var(--font-title)", fontSize: "0.95rem", fontWeight: 700, color: "var(--text-main)", letterSpacing: "0.05em" }}>{m.name}</div>
+                  </div>
+                  <span 
+                    className={`selection-status-badge`} 
+                    style={{ 
+                      background: activeMode === "failure" ? "rgba(255,59,59,0.15)" : activeMode === "warning" ? "rgba(255,170,0,0.15)" : "rgba(0,230,118,0.15)",
+                      color: textGlow,
+                      border: `1px solid ${textGlow}`,
+                      padding: "2px 8px",
+                      fontSize: "0.58rem",
+                      fontFamily: "var(--font-mono)",
+                      borderRadius: "4px",
+                      textTransform: "uppercase",
+                      boxShadow: `0 0 8px ${textGlow}`
+                    }}
+                  >
+                    {activeMode}
+                  </span>
+                </div>
 
-            <div className="kpi-card" style={{ padding: "16px" }}>
-              <div className="kpi-label">CORE PRESSURE</div>
-              <div className="kpi-val" style={{ fontSize: "1.45rem", color: pressVal >= sensors.pressure.critical ? "var(--red)" : pressVal >= sensors.pressure.warn ? "var(--yellow)" : "var(--green)" }}>
-                {pressVal.toFixed(1)} PSI
-              </div>
-              <div style={{ fontSize: "0.58rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                LIMIT: {sensors.pressure.critical} PSI MAX
-              </div>
-            </div>
+                {/* Body section: Left = Circular Gauge, Right = HUD readouts */}
+                <div className="manager-machine-card-body">
+                  {/* Left Column: Circular SVG Gauge representing System Health */}
+                  {(() => {
+                    const healthPct = Math.max(0, 100 - m.risk);
+                    const strokeDashoffset = 276.4 - (276.4 * healthPct) / 100;
+                    
+                    let circleMeaning = "SYSTEM HEALTH";
+                    if (mId === "motor") {
+                      circleMeaning = "THERMAL HEALTH";
+                    } else if (mId === "pump") {
+                      circleMeaning = "FLOW STABILITY";
+                    } else if (mId === "generator") {
+                      circleMeaning = "LOAD EFFICIENCY";
+                    }
 
-            <div className="kpi-card" style={{ padding: "16px" }}>
-              <div className="kpi-label">COOLANT FLOW</div>
-              <div className="kpi-val" style={{ fontSize: "1.45rem", color: flowVal <= sensors.flow.critical ? "var(--red)" : flowVal <= sensors.flow.warn ? "var(--yellow)" : "var(--green)" }}>
-                {flowVal.toFixed(2)} L/s
-              </div>
-              <div style={{ fontSize: "0.58rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                LIMIT: {sensors.flow.critical} L/s MIN
-              </div>
-            </div>
+                    return (
+                      <div className="manager-gauge-container">
+                        <svg className="manager-circular-gauge">
+                          <circle 
+                            className="bg-circle" 
+                            cx="55" 
+                            cy="55" 
+                            r="44" 
+                          />
+                          <circle 
+                            className="val-circle" 
+                            cx="55" 
+                            cy="55" 
+                            r="44" 
+                            style={{
+                              stroke: textGlow,
+                              strokeDashoffset: strokeDashoffset,
+                              filter: `drop-shadow(0 0 6px ${textGlow})`
+                            }}
+                          />
+                        </svg>
+                        <div className="manager-gauge-overlay">
+                          <div className="manager-gauge-percentage" style={{ color: textGlow }}>
+                            {healthPct}%
+                          </div>
+                          <div className="manager-gauge-lbl">
+                            {circleMeaning}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
-            <div className="kpi-card" style={{ padding: "16px" }}>
-              <div className="kpi-label">ROTOR VIBRATION</div>
-              <div className="kpi-val" style={{ fontSize: "1.45rem", color: vibVal >= sensors.vibration.critical ? "var(--red)" : vibVal >= sensors.vibration.warn ? "var(--yellow)" : "var(--green)" }}>
-                {vibVal.toFixed(2)}g
-              </div>
-              <div style={{ fontSize: "0.58rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                LIMIT: {sensors.vibration.critical}g MAX
-              </div>
-            </div>
+                  {/* Right Column: Simplified key metrics readout */}
+                  <div className="manager-stats-container">
+                    <div className="manager-stat-row">
+                      <span className="manager-stat-name">TEMPERATURE</span>
+                      <span className="manager-stat-val" style={{ color: tempSens.current >= tempSens.warn ? "var(--yellow)" : "var(--text-main)" }}>
+                        {tempSens.current.toFixed(1)}{tempSens.unit}
+                      </span>
+                    </div>
+                    <div className="manager-stat-row">
+                      <span className="manager-stat-name">PRESSURE</span>
+                      <span className="manager-stat-val" style={{ color: pressSens.current >= pressSens.warn ? "var(--yellow)" : "var(--text-main)" }}>
+                        {pressSens.current.toFixed(1)}{pressSens.unit}
+                      </span>
+                    </div>
+                    <div className="manager-stat-row">
+                      <span className="manager-stat-name">CURRENT</span>
+                      <span className="manager-stat-val" style={{ color: currSens.current >= currSens.warn ? "var(--yellow)" : "var(--text-main)" }}>
+                        {currSens.current.toFixed(1)}{currSens.unit}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-            <div className="kpi-card" style={{ padding: "16px" }}>
-              <div className="kpi-label">INDUCTION CURRENT</div>
-              <div className="kpi-val" style={{ fontSize: "1.45rem", color: currVal >= sensors.current.critical ? "var(--red)" : currVal >= sensors.current.warn ? "var(--yellow)" : "var(--green)" }}>
-                {currVal.toFixed(1)}A
-              </div>
-              <div style={{ fontSize: "0.58rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                LIMIT: {sensors.current.critical}A MAX
-              </div>
-            </div>
+                {/* Bottom Storytelling Insight footer */}
+                {(() => {
+                  let insightText = "";
+                  if (activeMode === "failure") {
+                    if (mId === "motor") {
+                      insightText = "🚨 CRITICAL OVERHEATING: COOLANT SYS DEVIATION DETECTED!";
+                    } else if (mId === "pump") {
+                      insightText = "🚨 HYDRAULIC PRESSURE BEYOND RUPTURE LIMITS!";
+                    } else if (mId === "generator") {
+                      insightText = "🚨 LOAD ANOMALY: EXTREME OVERCURRENT SHUTDOWN!";
+                    }
+                  } else if (activeMode === "warning") {
+                    if (mId === "motor") {
+                      insightText = "⚠️ Overheating trend detected (ventilation check suggested)";
+                    } else if (mId === "pump") {
+                      insightText = "⚠️ Flow instability rising (cavitation alert)";
+                    } else if (mId === "generator") {
+                      insightText = "⚠️ Load efficiency dropping (induction loss)";
+                    }
+                  } else {
+                    if (mId === "motor") {
+                      insightText = "🟢 Thermal core nominal, stable cooling cycle";
+                    } else if (mId === "pump") {
+                      insightText = "🟢 Flow hydraulics secure, steady discharge";
+                    } else if (mId === "generator") {
+                      insightText = "🟢 Load synchronization locked, baseline active";
+                    }
+                  }
 
-          </div>
+                  return (
+                    <div className="manager-insight-footer">
+                      {insightText}
+                    </div>
+                  );
+                })()}
+              </div>
+            );
+          })}
         </div>
-
-        {/* BOTTOM: Executive summary performance chart & Plant status grid */}
-        <div className="chart-grid" style={{ display: "grid", gridTemplateColumns: "1fr", gap: "20px" }}>
-          <Chart
-            title="PLANT-WIDE COMBINED PERFORMANCE SUMMARY"
-            value={`${(100 - currentRisk).toFixed(1)}%`}
-            data={sensors.motor.history.map((val, idx) => {
-              const sum = (val / 120 + sensors.voltage.history[idx] / 250) / 2;
-              return 100 - sum * 100;
-            })}
-            color="var(--blue)"
-            warnVal={60}
-            critVal={40}
-          />
-        </div>
-
-        <div className="eng-section fade-in">
-          <div className="gauge-title" style={{ marginBottom: "12px", borderBottom: "none" }}>
-            ◆ PLANT GRID SECTORS DEPLOYMENT STATUS
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginTop: "10px" }}>
-            <div style={{ padding: "14px", background: "rgba(5, 10, 20, 0.4)", border: "1px solid var(--border-color)", borderRadius: "6px", textAlign: "center" }}>
-              <div style={{ fontSize: "0.55rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>SECTOR ALPHA</div>
-              <div style={{ fontWeight: 900, color: "var(--green)", fontSize: "0.8rem", marginTop: "6px" }}>🟢 NOMINAL / ONLINE</div>
-            </div>
-            <div style={{ padding: "14px", background: "rgba(5, 10, 20, 0.4)", border: "1px solid var(--border-color)", borderRadius: "6px", textAlign: "center" }}>
-              <div style={{ fontSize: "0.55rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>SECTOR BETA</div>
-              <div style={{ fontWeight: 900, color: "var(--green)", fontSize: "0.8rem", marginTop: "6px" }}>🟢 STANDBY / STABLE</div>
-            </div>
-            <div style={{ padding: "14px", background: "rgba(5, 10, 20, 0.4)", border: "1px solid var(--border-color)", borderRadius: "6px", textAlign: "center" }}>
-              <div style={{ fontSize: "0.55rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>SECTOR GAMMA</div>
-              <div style={{ 
-                fontWeight: 900, 
-                color: mode.toLowerCase() === "failure" ? "var(--red)" : mode.toLowerCase() === "warning" ? "var(--yellow)" : "var(--green)", 
-                fontSize: "0.8rem", 
-                marginTop: "6px" 
-              }}>
-                {mode.toLowerCase() === "failure" ? "🔴 OVERLIMIT" : mode.toLowerCase() === "warning" ? "⚠️ DRIFT ALERT" : "🟢 ONLINE / STANDARD"}
-              </div>
-            </div>
-          </div>
-        </div>
-
       </div>
     );
   };
 
+  // Switch rendering flow based on active Role
   return (
-    <div className="center" style={{ display: "flex", flexDirection: "column", gap: "16px", height: "100%", width: "100%" }}>
-      
-      {/* Dynamic Warning / Failure Banner (Always rendered at the top when active) */}
-      {(mode.toLowerCase() === "failure" || mode.toLowerCase() === "warning") && (
-        <div className="prediction-banner active" style={{ flexShrink: 0 }}>
-          <div className="pred-icon">
-            {mode.toLowerCase() === "failure" ? "🔴" : "⚠"}
-          </div>
-          <div className="pred-content">
-            <div className="pred-title">
-              {mode.toLowerCase() === "failure"
-                ? "AI PREDICTIVE ALERT: MOTOR CASCADE OVERLOAD ACTIVE"
-                : "AI TELEMETRY WARN: THERMAL DRIFT EXCURSION DETECTED"}
-            </div>
-            <div className="pred-subtitle">
-              Calculated system risk reached {currentRisk}%. Predictive telemetry algorithms forecast rotor winding cavitation.
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Render selected role dashboard dynamically */}
+    <div className="center">
       {isOperator && renderOperatorView()}
       {isEngineer && renderEngineerView()}
       {isManager && renderManagerView()}
