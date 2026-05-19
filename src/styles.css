@@ -1473,23 +1473,15 @@ body.emergency-mode .prediction-banner {
   display: flex !important;
 }
 
-.focus-mode {
+.focus-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 9999;
+  z-index: 9998;
   box-shadow: inset 0 0 150px rgba(255, 59, 59, 0.7);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 80px;
-  font-family: var(--font-title);
-  font-size: 2.2rem;
-  color: var(--red);
-  text-shadow: 0 0 20px rgba(255, 59, 59, 0.8);
   animation: flashFocus 1.2s infinite ease-in-out;
   background: rgba(255, 59, 59, 0.015);
 }
@@ -2869,7 +2861,7 @@ body.emergency-mode .prediction-banner {
 }
 
 /* Extreme Risk Alert HUD Banner */
-.focus-mode {
+.focus-banner {
   position: fixed;
   top: 15px;
   left: 50%;

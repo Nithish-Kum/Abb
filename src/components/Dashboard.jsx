@@ -445,9 +445,12 @@ function Dashboard({ role }) {
 
       {/* Extreme Risk Focus Notification Ring */}
       {shouldFocus && (
-        <div className="focus-mode">
-          ⚡ EXTREME SYSTEM RISK BREACH DETECTED ⚡
-        </div>
+        <>
+          <div className="focus-overlay"></div>
+          <div className="focus-banner">
+            ⚡ EXTREME SYSTEM RISK BREACH DETECTED ⚡
+          </div>
+        </>
       )}
 
       {/* 📂 OPERATOR CHOOSE SCREEN FLOW CHECK */}
