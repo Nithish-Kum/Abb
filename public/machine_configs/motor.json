@@ -1,0 +1,43 @@
+{
+      "machineName": "Thermal Core Motor",
+      "machineId": "motor",
+      "dataset": "motor_data.csv",
+      "primarySensor": "temp",
+      "sensors": [
+            {
+                  "name": "temp",
+                  "display": "Motor Core Temp",
+                  "unit": "°C",
+                  "warning": 75,
+                  "critical": 95
+            },
+            {
+                  "name": "pressure",
+                  "display": "Core Pressure",
+                  "unit": "PSI",
+                  "warning": 90,
+                  "critical": 110
+            },
+            {
+                  "name": "vibration",
+                  "display": "Rotor Vibration",
+                  "unit": "g",
+                  "warning": 1.5,
+                  "critical": 2.5
+            },
+            {
+                  "name": "voltage",
+                  "display": "Line Voltage",
+                  "unit": "V",
+                  "warning": 210,
+                  "critical": 240
+            },
+            {
+                  "name": "current",
+                  "display": "Current",
+                  "unit": "A",
+                  "warning": 15,
+                  "critical": 20
+            }
+      ]
+}

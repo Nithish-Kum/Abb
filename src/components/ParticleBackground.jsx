@@ -24,13 +24,13 @@ function ParticleBackground({ mode }) {
     const getModeConfig = (status) => {
       switch (status) {
         case "warning":
-          return { color: "255, 181, 71", speedFactor: 1.5, connectDist: 100 };
+          return { color: "255, 170, 0", speedFactor: 1.5, connectDist: 100 };
         case "failure":
-          return { color: "255, 59, 107", speedFactor: 3.0, connectDist: 120 };
+          return { color: "255, 59, 59", speedFactor: 3.0, connectDist: 120 };
         case "recovery":
-          return { color: "124, 92, 255", speedFactor: 0.5, connectDist: 90 };
+          return { color: "0, 207, 255", speedFactor: 0.5, connectDist: 90 };
         default: // normal
-          return { color: "52, 211, 153", speedFactor: 0.8, connectDist: 90 };
+          return { color: "0, 255, 159", speedFactor: 0.8, connectDist: 90 };
       }
     };
 

@@ -39,9 +39,10 @@ const MACHINES_CONFIG = [
 ];
 
 function Dashboard({ role }) {
-  const isOperator = role === "operator";
-  const isManager = role === "manager";
-  const isEngineer = role === "engineer";
+  const [activeRole, setActiveRole] = useState(role);
+  const isOperator = activeRole === "operator";
+  const isManager = activeRole === "manager";
+  const isEngineer = activeRole === "engineer";
 
   const [coords, setCoords] = useState({ x: -1000, y: -1000 });
 
@@ -56,7 +57,7 @@ function Dashboard({ role }) {
 
   // Operator selection flow state, dynamic bind default selection for engineer/manager
   const [selectedMachineId, setSelectedMachineId] = useState(() => {
-    return isOperator ? "" : "motor";
+    return role === "operator" ? "" : "motor";
   });
 
   // 2. LIVE INTEGRATED MULTI-MACHINE REAL-TIME TELEMETRY GENERATOR
@@ -84,6 +85,7 @@ function Dashboard({ role }) {
   });
 
   const [alerts, setAlerts] = useState([]);
+  const [alarmDismissed, setAlarmDismissed] = useState(false);
 
   // Audio alarm references
   const alarmCtxRef = useRef(null);
@@ -91,13 +93,47 @@ function Dashboard({ role }) {
   const lastStateRef = useRef("normal");
 
   // Dynamic system status calculations based on selected machine
-  const currentMode = selectedMachineId && machinesData[selectedMachineId]
-    ? machinesData[selectedMachineId].mode
-    : "normal";
+  const currentMode = activeRole === "manager"
+    ? "normal"
+    : (selectedMachineId && machinesData[selectedMachineId]
+        ? machinesData[selectedMachineId].mode
+        : "normal");
 
-  const currentRisk = selectedMachineId && machinesData[selectedMachineId]
-    ? machinesData[selectedMachineId].risk
-    : 0;
+  const currentRisk = activeRole === "manager"
+    ? 0
+    : (selectedMachineId && machinesData[selectedMachineId]
+        ? machinesData[selectedMachineId].risk
+        : 0);
+
+  // Reset alarm dismissed state if status moves away from failure
+  useEffect(() => {
+    if (currentMode !== "failure") {
+      setAlarmDismissed(false);
+    }
+  }, [currentMode]);
+
+  // Auto-navigate to warning/failure machine selection (without changing active role)
+  useEffect(() => {
+    // DO NOT auto-redirect if active role is operator (let operator choose manually)
+    if (activeRole === "operator") return;
+
+    // Check for failure first (higher priority)
+    const failureMachine = Object.keys(machinesData).find(
+      mId => machinesData[mId].mode === "failure"
+    );
+    if (failureMachine && selectedMachineId !== failureMachine) {
+      setSelectedMachineId(failureMachine);
+      return;
+    }
+
+    // Check for warning second
+    const warningMachine = Object.keys(machinesData).find(
+      mId => machinesData[mId].mode === "warning"
+    );
+    if (warningMachine && selectedMachineId !== warningMachine) {
+      setSelectedMachineId(warningMachine);
+    }
+  }, [machinesData, selectedMachineId, activeRole]);
 
   // Dynamic CSV Parser
   const parseCSV = (text) => {
@@ -221,12 +257,24 @@ function Dashboard({ role }) {
           setMachinesData(prev => {
             const next = { ...prev };
             if (next[mId]) {
+              const prevMode = next[mId].mode;
               next[mId] = {
                 ...next[mId],
                 mode: mode,
                 risk: risk,
                 sensors: sensorsMap
               };
+
+              // Trigger Speech Synthesis voice on entering failure!
+              if (mode === "failure" && prevMode !== "failure" && !alarmDismissed) {
+                if (window.speechSynthesis) {
+                  window.speechSynthesis.cancel();
+                  const utterance = new SpeechSynthesisUtterance(`${next[mId].name} facing failure`);
+                  utterance.rate = 1.0;
+                  utterance.pitch = 0.95;
+                  window.speechSynthesis.speak(utterance);
+                }
+              }
             }
             return next;
           });
@@ -283,6 +331,7 @@ function Dashboard({ role }) {
     return () => stopAllSounds();
   }, []);
 
+
   const playWarningBeeps = () => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -309,25 +358,7 @@ function Dashboard({ role }) {
   };
 
   const startFailureBuzzer = () => {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      alarmCtxRef.current = ctx;
-      const pulse = () => {
-        if (!ctx || ctx.state === "closed") return;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "square";
-        osc.frequency.setValueAtTime(950, ctx.currentTime);
-        gain.gain.setValueAtTime(0.15, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.14);
-      };
-      pulse();
-      alarmIntervalRef.current = setInterval(pulse, 280);
-    } catch (e) { }
+    // Disabled (Voice alert is handled globally via high-fidelity Synthesis loop above)
   };
 
   const stopAllSounds = () => {
@@ -335,9 +366,8 @@ function Dashboard({ role }) {
       clearInterval(alarmIntervalRef.current);
       alarmIntervalRef.current = null;
     }
-    if (alarmCtxRef.current) {
-      try { alarmCtxRef.current.close(); } catch (e) { }
-      alarmCtxRef.current = null;
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
     }
   };
 
@@ -414,7 +444,7 @@ function Dashboard({ role }) {
     );
   };
 
-  const shouldFocus = currentRisk >= 80;
+  const shouldFocus = currentRisk >= 80 && currentMode === "failure";
 
   const criticalAlertsList = activeAlerts.filter(a => a.type === "critical");
   const warningAlertsList = activeAlerts.filter(a => a.type === "warning");
@@ -425,7 +455,7 @@ function Dashboard({ role }) {
   return (
     <div
       id="app"
-      className={`dashboard ${getThemeClass()} ${currentMode === "failure" ? "emergency-mode" : ""}`}
+      className={`dashboard ${getThemeClass()} ${currentMode === "failure" ? "emergency-mode" : ""} ${currentMode === "warning" ? "warning-alarm-mode" : ""}`}
     >
       {/* Moving background node particles */}
       <ParticleBackground mode={currentMode} />
@@ -465,48 +495,60 @@ function Dashboard({ role }) {
         <>
           {/* Main layout Topbar with dynamic switch capabilities */}
           <Topbar
-            role={role}
+            role={activeRole}
             mode={currentMode}
             selectedMachineId={selectedMachineId}
             onSwitchMachine={() => setSelectedMachineId("")}
           />
 
-          {/* ⚡ Glowing Global Top Alert Bar (Mandatory high-visibility alert) */}
-          {topAlert && (
-            <div className={`global-top-alert-bar ${topAlert.type === "critical" ? "critical" : "warning"} fade-in`}>
-              <div className="alert-bar-content">
-                <span className="alert-bar-icon">{topAlert.type === "critical" ? "🚨" : "⚠️"}</span>
-                <span className="alert-bar-title">{topAlert.type === "critical" ? "CRITICAL SYSTEM MELTDOWN ALERT:" : "SYSTEM ADVISORY WARNING:"}</span>
-                <span className="alert-bar-message">{topAlert.msg}</span>
-              </div>
-              <button className="alert-bar-ack" onClick={() => ackAlert(topAlert.id)}>
-                ✓ ACKNOWLEDGE
-              </button>
-            </div>
-          )}
 
           <div className="main">
             <Sidebar
-              role={role}
+              role={activeRole}
               sensors={machinesData[selectedMachineId]?.sensors || {}}
+              machinesData={machinesData}
             />
             <CenterPanel
-              role={role}
+              role={activeRole}
               mode={currentMode}
               selectedMachineId={selectedMachineId}
               setSelectedMachineId={setSelectedMachineId}
               machinesData={machinesData}
               alerts={activeAlerts}
               ackAlert={ackAlert}
+              alarmDismissed={alarmDismissed}
+              setAlarmDismissed={setAlarmDismissed}
             />
             <AlertsPanel
-              role={role}
+              role={activeRole}
               mode={currentMode}
               alerts={activeAlerts}
               ackAlert={ackAlert}
+              machinesData={machinesData}
             />
           </div>
         </>
+      )}
+
+      {/* Operator Alarm Popup Overlay on Failure */}
+      {isOperator && currentMode === "failure" && !alarmDismissed && (
+        <div className="fixed inset-0 bg-[#050816]/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-[#050816]/95 border-2 border-red-500/40 max-w-md w-full p-6 rounded-2xl flex flex-col gap-4 text-center shadow-[0_0_50px_rgba(239,68,68,0.3)] animate-pulse">
+            <div className="font-display font-black text-sm tracking-[0.25em] text-[#ef4444]">🚨 CRITICAL SCADA EMERGENCY ALARM</div>
+            <div className="font-sans text-xs text-white/90 leading-relaxed">
+              SYSTEM BREACH: Active cascade meltdown detected in Rotor Stator winding. Core temperature exceeds caution limits. Automated suppression loops initialized.
+            </div>
+            <button
+              className="w-full mt-2 py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/40 hover:border-red-500 text-white font-mono text-[10px] uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer"
+              onClick={() => {
+                setAlarmDismissed(true);
+                alerts.forEach(a => ackAlert(a.id));
+              }}
+            >
+              ✓ ACKNOWLEDGE SEVERE EMERGENCY
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

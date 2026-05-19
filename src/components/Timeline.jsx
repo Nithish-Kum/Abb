@@ -5,12 +5,12 @@ function Timeline({ mode }) {
 
   useEffect(() => {
     const msgs = {
-      normal: { color: "var(--emerald)", msg: "SYSTEM NORMAL: Telemetry stabilized within safe limits." },
-      warning: { color: "var(--amber)", msg: "ANOMALY EXCURSION: AI escalation triggered on elevated sensors." },
-      failure: { color: "var(--rose)", msg: "CRITICAL BREACH: Safety threshold failure. Emergency routines active." },
-      recovery: { color: "var(--indigo)", msg: "RECOVERY SYSTEM: Restoring baseline parameters. Bypass engaged." }
+      normal: { color: "#10b981", msg: "SYSTEM NORMAL: Telemetry stabilized within safe limits." },
+      warning: { color: "#f59e0b", msg: "ANOMALY EXCURSION: AI escalation triggered on elevated sensors." },
+      failure: { color: "#ef4444", msg: "CRITICAL BREACH: Safety threshold failure. Emergency routines active." },
+      recovery: { color: "#3b82f6", msg: "RECOVERY SYSTEM: Restoring baseline parameters. Bypass engaged." }
     };
-    
+
     const m = msgs[mode.toLowerCase()];
     if (m) {
       setEvents(prev => {
@@ -26,35 +26,26 @@ function Timeline({ mode }) {
   }, [mode]);
 
   return (
-    <div className="timeline-card fade-in">
-      <div className="timeline-title">◆ CHRONOLOGICAL EVENT LOG</div>
-      <div className="timeline">
+    <div className="bg-card/50 backdrop-blur-xl border border-border p-4 rounded-xl flex flex-col gap-2 relative z-10 hover:border-cyan/30 transition-all duration-300 tilt">
+      <div className="font-mono text-[10px] tracking-[0.2em] text-cyan/60 uppercase">◆ CHRONOLOGICAL EVENT LOG</div>
+      <div className="flex flex-col gap-3.5 mt-2 max-h-[220px] overflow-y-auto pr-1">
         {events.length === 0 ? (
-          <div 
-            style={{
-              textAlign: "center",
-              color: "var(--ink-500)",
-              fontSize: "0.7rem",
-              padding: "16px 0",
-              fontFamily: "var(--font-mono)"
-            }}
-          >
+          <div className="text-center text-cyan/50 text-[10px] py-4 font-mono">
             Awaiting system events...
           </div>
         ) : (
           events.map(ev => (
-            <div key={ev.id} className="tl-item">
-              <div 
-                className="tl-dot" 
-                style={{ 
-                  background: ev.color, 
-                  color: ev.color,
-                  transition: "background 0.3s"
+            <div key={ev.id} className="flex items-start gap-3 border-l border-cyan/10 pl-3 relative">
+              <div
+                className="w-1.5 h-1.5 rounded-full absolute -left-[4px] top-1.5 transition-all duration-300"
+                style={{
+                  backgroundColor: ev.color,
+                  boxShadow: `0 0 6px ${ev.color}`
                 }}
-              ></div>
-              <div className="tl-content">
-                <div className="tl-msg">{ev.msg}</div>
-                <div className="tl-time">{ev.time}</div>
+              />
+              <div className="flex flex-col gap-0.5">
+                <div className="text-[10px] text-white/90 leading-relaxed font-sans">{ev.msg}</div>
+                <div className="text-[8px] font-mono text-cyan/50">{ev.time}</div>
               </div>
             </div>
           ))

@@ -1,7 +1,8 @@
-import random, time, csv
+import random, time, csv, os
 from datetime import datetime
 
-FILE_NAME = "generator_data.csv"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+FILE_NAME = os.path.join(SCRIPT_DIR, "generator_data.csv")
 
 gen = {
     "power": 220,
@@ -42,13 +43,23 @@ while True:
 
     risk = risk_calc(gen)
 
+    # Align status string directly with calculated risk limits (40% warning, 70% critical)
+    if risk >= 70:
+        status_str = "FAILURE"
+    elif risk >= 40:
+        status_str = "WARNING"
+    elif gen["state"] == "recovery":
+        status_str = "RECOVERY"
+    else:
+        status_str = "NORMAL"
+
     row = [
         now,
         round(gen["power"],2),
         round(gen["load"],2),
         round(gen["frequency"],2),
         risk,
-        gen["state"].upper()
+        status_str
     ]
 
     print("GENERATOR:", row)

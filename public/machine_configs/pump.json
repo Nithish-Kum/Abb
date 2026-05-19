@@ -1,0 +1,29 @@
+{
+      "machineName": "Hydraulic Flow Pump",
+      "machineId": "pump",
+      "dataset": "pump_data.csv",
+      "primarySensor": "flow_rate",
+      "sensors": [
+            {
+                  "name": "flow_rate",
+                  "display": "Flow Rate",
+                  "unit": "L/s",
+                  "warning": 3.5,
+                  "critical": 2
+            },
+            {
+                  "name": "pressure",
+                  "display": "Pressure",
+                  "unit": "PSI",
+                  "warning": 100,
+                  "critical": 130
+            },
+            {
+                  "name": "efficiency",
+                  "display": "Efficiency",
+                  "unit": "%",
+                  "warning": 70,
+                  "critical": 50
+            }
+      ]
+}

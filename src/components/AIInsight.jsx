@@ -1,71 +1,61 @@
 import { useEffect, useState } from "react";
 
-const aiInsights = {
-  normal: [
-    { label: "SYSTEM STABLE", text: "All systems operating within nominal limits. Thermal dissipation and vibration baseline remain steady. Zero anomalies in queue.", conf: 92 },
-    { label: "SYSTEM STABLE", text: "High machine efficiency (94.2%). Voltage oscillations are standard. AI predicts no failures in the next 120 minutes.", conf: 89 }
-  ],
-  warning: [
-    { label: "ANOMALY DETECTED", text: "⚠ Thermal drift detected in Motor Temp. Vibration amplitude shows atypical peaks. Recommend fan diagnostic check.", conf: 78 },
-    { label: "ANOMALY DETECTED", text: "⚠ Valve restriction coefficient is high. Transient pressure ripples correlate with a 72% probability of partial line clog.", conf: 83 }
-  ],
-  failure: [
-    { label: "CRITICAL CONDITION", text: "🔴 CASUALTY PREDICTION: Motor thermal runaway cascade underway. Temperature limit exceeded. Immediate power shutdown suggested.", conf: 96 },
-    { label: "CRITICAL CONDITION", text: "🔴 MULTIPLE SENSOR RUPTURE: Simultaneous pressure drop and current spike. Emergency bypass valve trigger recommended.", conf: 94 }
-  ],
-  recovery: [
-    { label: "SYSTEM STABILIZING", text: "♻ Cooling circuit active. Core motor temperatures dropped 22°C. Sensors are returning to nominal calibration curves.", conf: 87 }
-  ]
-};
-
 function AIInsight({ mode }) {
-  const [insight, setInsight] = useState(aiInsights.normal[0]);
+  let label = "SYSTEM STABLE";
+  let text = "All systems operating within expected parameters. Thermal dissipation and vibration baseline remain steady. Zero anomalies in queue.";
+  let conf = 94;
+  let labelColor = "#10b981";
 
-  useEffect(() => {
-    const list = aiInsights[mode.toLowerCase()] || aiInsights.normal;
-    // Keep it deterministic on render, but select a random one when mode changes
-    const chosen = list[Math.floor(Math.random() * list.length)];
-    setInsight(chosen);
-  }, [mode]);
+  const lowerMode = (mode || "").toLowerCase();
+
+  if (lowerMode === "failure") {
+    label = "CRITICAL CONDITION";
+    text = "🔴 CASUALTY PREDICTION: Motor thermal runaway cascade underway or active power line surge detected! Thermal or load limits exceeded. Immediate power shutdown suggested.";
+    conf = 98;
+    labelColor = "#ef4444";
+  } else if (lowerMode === "warning") {
+    label = "ANOMALY DETECTED";
+    text = "⚠️ WARNING DEVIATION: Abnormal pressure fluctuations detected in Hydraulic Pump, or thermal drift in Motor Stator. Recommend cooling diagnostics.";
+    conf = 81;
+    labelColor = "#f59e0b";
+  } else if (lowerMode === "recovery") {
+    label = "SYSTEM STABILIZING";
+    text = "♻️ RECOVERY IN PROGRESS: Cooling stabilization underway. Temperatures are dropping and sensors are returning to nominal calibration curves.";
+    conf = 88;
+    labelColor = "#00e5ff";
+  }
 
   return (
-    <div className="ai-insight">
-      <div className="ai-insight-header">
-        <div className="ai-chip">AI DIAGNOSTIC</div>
+    <div className="bg-card/50 backdrop-blur-xl border border-border p-4 rounded-xl flex flex-col gap-3.5 relative z-10 hover:border-cyan/30 transition-all duration-300 tilt">
+      <div className="flex justify-between items-center">
+        <div className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/30 text-white font-mono text-[9px] uppercase tracking-wider">
+          AI DIAGNOSTIC
+        </div>
         <span
-          style={{
-            fontSize: "0.62rem",
-            color: "var(--indigo)",
-            fontFamily: "var(--font-mono)",
-            letterSpacing: "0.15em",
-            fontWeight: "700",
-            transition: "color 0.3s"
-          }}
+          className="text-[9px] font-mono tracking-widest font-bold uppercase transition-colors duration-300"
+          style={{ color: labelColor }}
         >
-          {insight.label}
+          {label}
         </span>
       </div>
-      <div className="ai-insight-text">{insight.text}</div>
-      <div className="ai-insight-conf">
-        <span
-          style={{
-            fontSize: "0.58rem",
-            fontFamily: "var(--font-mono)",
-            color: "var(--ink-500)",
-            letterSpacing: "0.05em"
-          }}
-        >
+
+      <div className="text-[11px] text-white/90 leading-relaxed font-sans mt-1 pr-1 font-semibold">
+        {text}
+      </div>
+
+      <div className="flex items-center gap-3 mt-1.5">
+        <span className="text-[9px] font-mono tracking-wider text-cyan/50 uppercase">
           AI CONFIDENCE:
         </span>
-        <div className="conf-bar-bg">
+        <div className="flex-1 bg-cyan/5 h-2 rounded overflow-hidden border border-cyan/10">
           <div
-            className="conf-bar-fill"
+            className="h-full rounded transition-all duration-500 bg-gradient-to-r from-cyan to-blue-500 shadow-[0_0_8px_rgba(0,229,255,0.4)]"
             style={{
-              width: `${insight.conf}%`
+              width: `${conf}%`
             }}
-          ></div>
+          />
         </div>
-        <div className="conf-pct">{insight.conf}%</div>
+        <div className="font-mono text-[10px] text-white tracking-wider font-bold">{conf}%</div>
       </div>
     </div>
   );

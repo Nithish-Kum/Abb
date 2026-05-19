@@ -1,7 +1,8 @@
-import random, time, csv
+import random, time, csv, os
 from datetime import datetime
 
-FILE_NAME = "pump_data.csv"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+FILE_NAME = os.path.join(SCRIPT_DIR, "pump_data.csv")
 
 pump = {
     "flow_rate": 4.0,
@@ -67,13 +68,23 @@ while True:
 
     risk = risk_calc(pump)
 
+    # Align status string directly with calculated risk limits (40% warning, 70% critical)
+    if risk >= 70:
+        status_str = "FAILURE"
+    elif risk >= 40:
+        status_str = "WARNING"
+    elif pump["state"] == "recovery":
+        status_str = "RECOVERY"
+    else:
+        status_str = "NORMAL"
+
     row = [
         now,
         round(pump["flow_rate"],2),
         round(pump["pressure"],2),
         round(pump["efficiency"],2),
         risk,
-        pump["state"].upper()
+        status_str
     ]
 
     print("PUMP:", row)

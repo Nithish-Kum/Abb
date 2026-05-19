@@ -1,85 +1,116 @@
-function Sidebar({ role, sensors }) {
+function Sidebar({ role, sensors, machinesData = {} }) {
   const isManager = role === "manager";
   const sensorArray = Object.values(sensors);
 
-  // Compute aggregated stats for Manager View
-  const activeWarnings = sensorArray.filter(s => s.current >= s.warn && s.current < s.critical).length;
-  const activeCriticals = sensorArray.filter(s => s.current >= s.critical).length;
-  const primarySensor = sensorArray[0] || { current: 70, name: "TEMPERATURE", unit: "°C", warn: 75, critical: 85 };
-  const primaryVal = primarySensor.current;
+  // Calculate dynamic live telemetry stats for Manager view using machinesData!
+  const motorRisk = machinesData.motor?.risk || 0;
+  const pumpRisk = machinesData.pump?.risk || 0;
+  const genRisk = machinesData.generator?.risk || 0;
+  const avgRisk = (motorRisk + pumpRisk + genRisk) / 3;
+  const integrity = 100 - avgRisk;
 
-  let healthScore = 100;
-  sensorArray.forEach(s => {
-    if (s.current >= s.critical) healthScore -= 12;
-    else if (s.current >= s.warn) healthScore -= 6;
+  const motorTemp = machinesData.motor?.sensors?.temp?.current || 70;
+  const pumpTemp = machinesData.pump?.sensors?.pressure?.current ? (35 + machinesData.pump.sensors.pressure.current * 0.35) : 60;
+  const generatorTemp = machinesData.generator?.sensors?.load?.current ? (40 + machinesData.generator.sensors.load.current * 0.45) : 65;
+  const tempAvg = (motorTemp + pumpTemp + generatorTemp) / 3;
+
+  let activeWarnings = 0;
+  let activeCriticals = 0;
+  Object.values(machinesData).forEach(m => {
+    if (m.sensors) {
+      Object.values(m.sensors).forEach(s => {
+        if (s.current >= s.critical) {
+          activeCriticals++;
+        } else if (s.current >= s.warn) {
+          activeWarnings++;
+        }
+      });
+    }
   });
-  healthScore = Math.max(30, healthScore);
+
+  let opHealthText = "HEALTHY";
+  let opHealthColor = "#10b981";
+  if (integrity > 80) {
+    opHealthText = "HEALTHY";
+    opHealthColor = "#10b981";
+  } else if (integrity > 60) {
+    opHealthText = "STABLE";
+    opHealthColor = "#f59e0b";
+  } else if (integrity > 40) {
+    opHealthText = "WARNING";
+    opHealthColor = "#f59e0b";
+  } else {
+    opHealthText = "SEVERE DISRUPTION";
+    opHealthColor = "#ef4444";
+  }
 
   if (isManager) {
     return (
-      <div className="sidebar">
-        <div className="sidebar-section">
-          <h3>📊 EXECUTIVE SUMMARY</h3>
-          <div id="sensorCards">
+      <div className="sidebar w-80 p-4 bg-black/40 border-r border-cyan/15 flex flex-col gap-6 overflow-y-auto">
+        <div className="flex flex-col gap-4">
+          <h3 className="font-display font-bold text-xs tracking-[0.25em] text-white border-b border-cyan/15 pb-2 uppercase">
+            📊 EXECUTIVE SUMMARY
+          </h3>
+          <div className="flex flex-col gap-4">
 
-             {/* System Health Factor */}
-            <div className="sensor-card fade-in">
-              <div className="sensor-header">
-                <span className="sensor-name">SYS INTEGRITY FACTOR</span>
-                <span className="sensor-unit">%</span>
+            {/* System Health Factor */}
+            <div className="bg-card/50 backdrop-blur-xl border border-border p-4 rounded-xl flex flex-col gap-2 relative z-10 hover:border-cyan/30 transition-all duration-300 tilt">
+              <div className="flex justify-between items-center text-[9px] font-mono tracking-widest text-cyan/60 uppercase">
+                <span>SYS INTEGRITY FACTOR</span>
+                <span>%</span>
               </div>
-              <div className="sensor-value" style={{ color: healthScore > 80 ? "var(--emerald)" : healthScore > 60 ? "var(--brand)" : "var(--rose)" }}>
-                {healthScore.toFixed(0)}%
+              <div className="font-display text-2xl font-bold tracking-tight" style={{ color: opHealthColor }}>
+                {integrity.toFixed(1)}%
               </div>
-              <div className="scada-linear-track" style={{ marginTop: "8px", height: "4px" }}>
+              <div className="w-full bg-cyan/10 h-1 rounded-full overflow-hidden mt-1">
                 <div
-                  className="scada-linear-fill"
+                  className="h-full rounded-full transition-all duration-500"
                   style={{
-                    width: `${healthScore}%`,
-                    background: healthScore > 80 ? "var(--emerald)" : healthScore > 60 ? "var(--brand)" : "var(--rose)",
-                    boxShadow: `0 0 6px ${healthScore > 80 ? "var(--emerald)" : healthScore > 60 ? "var(--brand)" : "var(--rose)"}`
+                    width: `${integrity}%`,
+                    background: opHealthColor,
+                    boxShadow: `0 0 6px ${opHealthColor}`
                   }}
                 />
               </div>
             </div>
 
             {/* Aggregated Primary Sensor average */}
-            <div className="sensor-card fade-in" style={{ animationDelay: "0.05s" }}>
-              <div className="sensor-header">
-                <span className="sensor-name">{primarySensor.name.toUpperCase()} AVG</span>
-                <span className="sensor-unit">{primarySensor.unit}</span>
+            <div className="bg-card/50 backdrop-blur-xl border border-border p-4 rounded-xl flex flex-col gap-2 relative z-10 hover:border-cyan/30 transition-all duration-300 tilt">
+              <div className="flex justify-between items-center text-[9px] font-mono tracking-widest text-cyan/60 uppercase">
+                <span>MACHINE TEMP AVG</span>
+                <span>°C</span>
               </div>
-              <div className="sensor-value">
-                {primaryVal.toFixed(1)}{primarySensor.unit}
+              <div className="font-display text-2xl font-bold tracking-tight text-white">
+                {tempAvg.toFixed(1)}°C
               </div>
-              <div style={{ fontSize: "0.6rem", color: "var(--text-muted)", marginTop: "4px", fontFamily: "var(--font-mono)" }}>
-                {primaryVal >= primarySensor.critical ? "⚠️ CRITICAL DEVIATION" : primaryVal >= primarySensor.warn ? "⚠️ WARNING EXCESS" : "🟢 NOMINAL RANGE"}
+              <div className="font-mono text-[9px] mt-1 tracking-wider" style={{ color: tempAvg >= 75 ? "#ef4444" : tempAvg >= 65 ? "#f59e0b" : "#10b981" }}>
+                {tempAvg >= 75 ? "⚠️ CRITICAL DEVIATION" : tempAvg >= 65 ? "⚠️ WARNING EXCESS" : "🟢 NOMINAL RANGE"}
               </div>
             </div>
 
             {/* Out of limit counts */}
-            <div className="sensor-card fade-in" style={{ animationDelay: "0.1s" }}>
-              <div className="sensor-header">
-                <span className="sensor-name">LIMIT EXCURSIONS</span>
-                <span className="sensor-unit">CHANNELS</span>
+            <div className="bg-card/50 backdrop-blur-xl border border-border p-4 rounded-xl flex flex-col gap-2 relative z-10 hover:border-cyan/30 transition-all duration-300 tilt">
+              <div className="flex justify-between items-center text-[9px] font-mono tracking-widest text-cyan/60 uppercase">
+                <span>LIMIT EXCURSIONS</span>
+                <span>CHANNELS</span>
               </div>
-              <div className="sensor-value" style={{ color: activeCriticals > 0 ? "var(--rose)" : activeWarnings > 0 ? "var(--brand)" : "var(--emerald)" }}>
+              <div className="font-display text-2xl font-bold tracking-tight" style={{ color: activeCriticals > 0 ? "#ef4444" : activeWarnings > 0 ? "#f59e0b" : "#10b981" }}>
                 {activeWarnings + activeCriticals}
               </div>
-              <div style={{ display: "flex", gap: "10px", marginTop: "6px", fontSize: "0.6rem", fontFamily: "var(--font-mono)" }}>
-                <span style={{ color: "var(--brand)" }}>⚠ {activeWarnings} WARN</span>
-                <span style={{ color: "var(--rose)" }}>🔴 {activeCriticals} CRIT</span>
+              <div className="flex gap-3 font-mono text-[9px] mt-1 tracking-wider">
+                <span className="text-[#f59e0b]">⚠ {activeWarnings} WARN</span>
+                <span className="text-[#ef4444]">🔴 {activeCriticals} CRIT</span>
               </div>
             </div>
 
             {/* Plant efficiency factor */}
-            <div className="sensor-card fade-in" style={{ animationDelay: "0.15s" }}>
-              <div className="sensor-header">
-                <span className="sensor-name">OPERATIONAL HEALTH</span>
-                <span className="sensor-unit">SYS</span>
+            <div className="bg-card/50 backdrop-blur-xl border border-border p-4 rounded-xl flex flex-col gap-2 relative z-10 hover:border-cyan/30 transition-all duration-300 tilt">
+              <div className="flex justify-between items-center text-[9px] font-mono tracking-widest text-cyan/60 uppercase">
+                <span>OPERATIONAL HEALTH</span>
+                <span>SYS</span>
               </div>
-              <div className="sensor-value" style={{ fontSize: "1.05rem", padding: "6px 0", color: activeCriticals > 0 ? "var(--rose)" : activeWarnings > 0 ? "var(--brand)" : "var(--emerald)" }}>
-                {activeCriticals > 0 ? "⚠️ SEVERE DISRUPTION" : activeWarnings > 0 ? "⚠️ PARTIAL LIMIT LOSS" : "🟢 SECURE STATE"}
+              <div className="font-mono text-[10px] font-bold mt-1 tracking-wider" style={{ color: opHealthColor }}>
+                {opHealthText}
               </div>
             </div>
 
@@ -91,23 +122,27 @@ function Sidebar({ role, sensors }) {
 
   // Operator and Engineer Standard detailed sensor-cards sidebar
   return (
-    <div className="sidebar">
-      <div className="sidebar-section">
-        <h3>📊 LIVE CHANNELS</h3>
-        <div id="sensorCards">
+    <div className="sidebar w-80 p-4 bg-black/40 border-r border-cyan/15 flex flex-col gap-6 overflow-y-auto">
+      <div className="flex flex-col gap-4">
+        <h3 className="font-display font-bold text-xs tracking-[0.25em] text-white border-b border-cyan/15 pb-2 uppercase">
+          📊 LIVE CHANNELS
+        </h3>
+        <div className="flex flex-col gap-4">
           {sensorArray.map((s) => {
             const isWarn = s.current >= s.warn;
             const isCrit = s.current >= s.critical;
-            const cardClass = isCrit ? "critical" : isWarn ? "warn" : "normal";
 
             const fillPct = Math.min(100, (s.current / s.max) * 100);
             const maxHist = Math.max(...s.history, 1);
 
-            let barColor = "var(--emerald)";
+            let barColor = "#10b981";
+            let stateClass = "border-emerald-500/20";
             if (isCrit) {
-              barColor = "var(--rose)";
+              barColor = "#ef4444";
+              stateClass = "border-red-500/35";
             } else if (isWarn) {
-              barColor = "var(--brand)";
+              barColor = "#f59e0b";
+              stateClass = "border-amber-500/30";
             }
 
             const historyAvg = s.history.reduce((sum, val) => sum + val, 0) / s.history.length;
@@ -118,50 +153,58 @@ function Sidebar({ role, sensors }) {
                 : "STABLE ⚖️";
 
             return (
-              <div key={s.id} className={`sensor-card ${cardClass} fade-in`}>
-                {/* Custom cyberpunk hover tooltip */}
-                <div className="sensor-tooltip">
-                  {s.name}: <span style={{ color: barColor }}>{s.current.toFixed(1)}{s.unit}</span> | Trend: {trend}
+              <div 
+                key={s.id} 
+                className={`bg-card/50 backdrop-blur-xl border ${stateClass} p-4 rounded-xl flex flex-col gap-1 relative z-10 hover:border-cyan/40 transition-all duration-300 tilt group`}
+              >
+                {/* Thin left status indicator strip */}
+                <div 
+                  className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl" 
+                  style={{ backgroundColor: barColor }}
+                />
+
+                <div className="flex justify-between items-center text-[9px] font-mono tracking-widest text-cyan/60 uppercase pl-2">
+                  <span>{s.name}</span>
+                  <span>{s.unit}</span>
                 </div>
 
-                <div className="sensor-header">
-                  <span className="sensor-name">{s.name}</span>
-                  <span className="sensor-unit">{s.unit}</span>
-                </div>
-
-                <div className="sensor-value">
+                <div className="font-display text-xl font-bold tracking-tight text-white pl-2">
                   {typeof s.current === "number" ? s.current.toFixed(1) : s.current}
                 </div>
 
-                {/* Styled progress container */}
-                <div className="sensor-status-strip">
+                {/* Progress bar track */}
+                <div className="w-full bg-cyan/5 h-[3px] rounded-full overflow-hidden mt-2 ml-2">
                   <div
+                    className="h-full rounded-full transition-all duration-500"
                     style={{
                       width: `${fillPct}%`,
-                      height: "100%",
-                      background: barColor,
-                      boxShadow: `0 0 8px ${barColor}`,
-                      transition: "width 0.5s ease"
+                      backgroundColor: barColor,
+                      boxShadow: `0 0 6px ${barColor}`
                     }}
                   />
                 </div>
 
-                <div className="sparkline" style={{ marginTop: "12px" }}>
+                {/* Custom Sparkline block */}
+                <div className="flex items-end justify-between h-[20px] mt-3 gap-[2px] ml-2 bg-black/30 p-1 rounded border border-cyan/5">
                   {s.history.map((v, i) => {
-                    const h = Math.max(4, (v / maxHist) * 20);
+                    const barH = Math.max(2, (v / maxHist) * 12);
                     return (
                       <div
                         key={i}
-                        className="spark-bar"
+                        className="flex-1 rounded-[1px] transition-all duration-300"
                         style={{
-                          height: `${h}px`,
-                          background: barColor,
-                          boxShadow: `0 0 4px ${barColor}`,
-                          transition: "height 0.4s ease"
+                          height: `${barH}px`,
+                          backgroundColor: barColor,
+                          opacity: 0.35 + (i / s.history.length) * 0.65
                         }}
                       />
                     );
                   })}
+                </div>
+
+                {/* Custom cyberpunk hover trend indicators */}
+                <div className="text-[8px] font-mono text-cyan/50 mt-1 pl-2 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  Trend: {trend}
                 </div>
               </div>
             );

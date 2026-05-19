@@ -1,0 +1,29 @@
+{
+      "machineName": "Turbine Generator",
+      "machineId": "generator",
+      "dataset": "generator_data.csv",
+      "primarySensor": "power_output",
+      "sensors": [
+            {
+                  "name": "power_output",
+                  "display": "Power Output",
+                  "unit": "kW",
+                  "warning": 1000,
+                  "critical": 1400
+            },
+            {
+                  "name": "grid_load",
+                  "display": "Grid Load",
+                  "unit": "%",
+                  "warning": 80,
+                  "critical": 95
+            },
+            {
+                  "name": "frequency",
+                  "display": "Frequency",
+                  "unit": "Hz",
+                  "warning": 55,
+                  "critical": 60
+            }
+      ]
+}

@@ -1,7 +1,8 @@
-import random, time, csv
+import random, time, csv, os
 from datetime import datetime
 
-FILE_NAME = "motor_data.csv"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+FILE_NAME = os.path.join(SCRIPT_DIR, "motor_data.csv")
 
 motor = {
     "temp": 70,
@@ -81,6 +82,16 @@ while True:
 
     risk = risk_calc(motor)
 
+    # Align status string directly with calculated risk limits (40% warning, 70% critical)
+    if risk >= 85:
+        status_str = "FAILURE"
+    elif risk >= 50:
+        status_str = "WARNING"
+    elif motor["state"] == "recovery":
+        status_str = "RECOVERY"
+    else:
+        status_str = "NORMAL"
+
     row = [
         now,
         round(motor["temp"],2),
@@ -89,7 +100,7 @@ while True:
         round(motor["voltage"],2),
         round(motor["current"],2),
         risk,
-        motor["state"].upper()
+        status_str
     ]
 
     print("MOTOR:", row)
@@ -97,4 +108,4 @@ while True:
     with open(FILE_NAME, "a", newline="") as f:
         csv.writer(f).writerow(row)
 
-    time.sleep(2)
+    time.sleep(5)
