@@ -49,6 +49,78 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
 
   const [loadReduced, setLoadReduced] = useState(false);
 
+  // Low-code Machine Builder states
+  const [machineName, setMachineName] = useState("");
+  const [machineId, setMachineId] = useState("");
+  const [datasetName, setDatasetName] = useState("");
+  const [sensorsList, setSensorsList] = useState([
+    { name: "", display: "", unit: "", warning: "", critical: "", max: "" }
+  ]);
+  const [statusMsg, setStatusMsg] = useState({ type: "", text: "" });
+
+  const handleNameChange = (val) => {
+    setMachineName(val);
+    const slug = val.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/(^_|_$)/g, "");
+    setMachineId(slug);
+    setDatasetName(`${slug}_data.csv`);
+  };
+
+  const handleCreateMachine = (e) => {
+    e.preventDefault();
+    if (!machineName.trim() || !machineId.trim() || !datasetName.trim()) {
+      setStatusMsg({ type: "error", text: "🔴 Error: All machine identification fields are required!" });
+      return;
+    }
+
+    for (let i = 0; i < sensorsList.length; i++) {
+      const s = sensorsList[i];
+      if (!s.name.trim()) {
+        setStatusMsg({ type: "error", text: `🔴 Error: Sensor #${i + 1} must have a name!` });
+        return;
+      }
+    }
+
+    const payload = {
+      machineName: machineName.trim(),
+      machineId: machineId.trim(),
+      dataset: datasetName.trim(),
+      sensors: sensorsList.map(s => {
+        const sId = s.name.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+        return {
+          id: sId,
+          name: s.display.trim() || s.name.toUpperCase().replace("_", " "),
+          unit: s.unit.trim() || "",
+          warn: Number(s.warning) || 80,
+          critical: Number(s.critical) || 100,
+          max: Number(s.max) || 120
+        };
+      })
+    };
+
+    fetch("/api/add-machine", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("Server error saving config file");
+        return res.json();
+      })
+      .then(() => {
+        setStatusMsg({ type: "success", text: `🟢 Success: ${machineName} onboarding configuration generated and saved successfully!` });
+        setMachineName("");
+        setMachineId("");
+        setDatasetName("");
+        setSensorsList([{ name: "", display: "", unit: "", warning: "", critical: "", max: "" }]);
+        if (typeof window.onMachineCreated === "function") {
+          window.onMachineCreated();
+        }
+      })
+      .catch(err => {
+        setStatusMsg({ type: "error", text: `🔴 Error: Failed to save machine: ${err.message}` });
+      });
+  };
+
   // Engineer view states
   const [activeTab, setActiveTab] = useState("trends"); // trends | diagnostics | health | history
   const [logFilter, setLogFilter] = useState("all"); // all | info | warning | critical
@@ -469,12 +541,13 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
 
         {/* Navigation Tab Menu */}
         <div className="flex border-b border-cyan/10 gap-2">
-          {["trends", "diagnostics", "health", "history"].map((tab) => {
+          {["trends", "diagnostics", "health", "history", "configuration"].map((tab) => {
             const labels = {
               trends: "📈 LIVE TRENDS",
               diagnostics: "🔍 DIAGNOSTICS",
               health: "🛡️ COMPONENT HEALTH",
-              history: "🕐 EVENT HISTORY"
+              history: "🕐 EVENT HISTORY",
+              configuration: "⚙️ ADD MACHINE"
             };
             const isActive = activeTab === tab;
             return (
@@ -603,6 +676,194 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
         {activeTab === "history" && (
           <div className="fade-in">
             <Timeline mode={mode} />
+          </div>
+        )}
+
+        {/* Tab 5: Low-Code Machine Builder */}
+        {activeTab === "configuration" && (
+          <div className="bg-card/40 backdrop-blur-xl border border-cyan/15 p-6 rounded-xl flex flex-col gap-6 relative z-10 fade-in select-none">
+            <div className="border-b border-cyan/15 pb-3">
+              <span className="font-mono text-[9px] tracking-[0.2em] text-[#00e5ff] uppercase font-bold">◆ SCADA CONFIGURATION CONTROL</span>
+              <h3 className="font-display font-black text-sm text-white tracking-widest uppercase mt-1">⚙️ LOW-CODE MACHINE ONBOARDING FORM</h3>
+            </div>
+
+            <form onSubmit={handleCreateMachine} className="flex flex-col gap-5">
+              {statusMsg.text && (
+                <div className={`p-3 rounded-lg border font-mono text-[10px] uppercase tracking-wider ${statusMsg.type === "success" ? "bg-emerald-500/10 border-emerald-500/30 text-[#10b981]" : "bg-red-500/10 border-red-500/30 text-[#ef4444]"}`}>
+                  {statusMsg.text}
+                </div>
+              )}
+
+              {/* Grid 1: Basic Machine identification */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-mono text-[8px] text-cyan/60 uppercase tracking-widest">Machine Name</label>
+                  <input
+                    type="text"
+                    value={machineName}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    placeholder="e.g. Boiler"
+                    className="bg-black/30 border border-cyan/10 focus:border-cyan focus:shadow-[0_0_8px_rgba(0,229,255,0.15)] rounded px-3 py-2 text-white font-mono text-xs focus:outline-none transition-all duration-300 placeholder:text-white/20"
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-mono text-[8px] text-cyan/60 uppercase tracking-widest">Machine ID</label>
+                  <input
+                    type="text"
+                    value={machineId}
+                    onChange={(e) => setMachineId(e.target.value)}
+                    placeholder="e.g. boiler"
+                    className="bg-black/30 border border-cyan/10 focus:border-cyan focus:shadow-[0_0_8px_rgba(0,229,255,0.15)] rounded px-3 py-2 text-white font-mono text-xs focus:outline-none transition-all duration-300 placeholder:text-white/20"
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-mono text-[8px] text-cyan/60 uppercase tracking-widest">Dataset Name</label>
+                  <input
+                    type="text"
+                    value={datasetName}
+                    onChange={(e) => setDatasetName(e.target.value)}
+                    placeholder="e.g. boiler_data.csv"
+                    className="bg-black/30 border border-cyan/10 focus:border-cyan focus:shadow-[0_0_8px_rgba(0,229,255,0.15)] rounded px-3 py-2 text-white font-mono text-xs focus:outline-none transition-all duration-300 placeholder:text-white/20"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Sensors List Builder Section */}
+              <div className="flex flex-col gap-3 mt-2 border-t border-cyan/10 pt-4">
+                <span className="font-mono text-[9px] tracking-wider text-cyan font-bold uppercase">◆ CONFIGURED SENSORS SECTION</span>
+
+                <div className="flex flex-col gap-4">
+                  {sensorsList.map((s, idx) => (
+                    <div key={idx} className="bg-black/20 border border-cyan/5 p-4 rounded-lg flex flex-col gap-3 relative">
+                      {sensorsList.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setSensorsList(sensorsList.filter((_, i) => i !== idx))}
+                          className="absolute top-3 right-3 text-cyan/40 hover:text-red-500 font-mono text-[10px] uppercase tracking-wider transition-colors duration-300 cursor-pointer"
+                        >
+                          ✕ Remove
+                        </button>
+                      )}
+                      
+                      <div className="font-mono text-[8px] text-cyan/40">SENSOR #{idx + 1}</div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                        <div className="flex flex-col gap-1">
+                          <label className="font-mono text-[8px] text-cyan/50 uppercase">Sensor Name (ID)</label>
+                          <input
+                            type="text"
+                            value={s.name}
+                            onChange={(e) => {
+                              const list = [...sensorsList];
+                              list[idx].name = e.target.value;
+                              if (!list[idx].display) {
+                                list[idx].display = e.target.value.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+                              }
+                              setSensorsList(list);
+                            }}
+                            placeholder="e.g. temperature"
+                            className="bg-black/30 border border-cyan/10 focus:border-cyan focus:shadow-[0_0_6px_rgba(0,229,255,0.15)] rounded px-2 py-1 text-white font-mono text-xs focus:outline-none transition-all duration-300 placeholder:text-white/20"
+                            required
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="font-mono text-[8px] text-cyan/50 uppercase">Display Label</label>
+                          <input
+                            type="text"
+                            value={s.display}
+                            onChange={(e) => {
+                              const list = [...sensorsList];
+                              list[idx].display = e.target.value;
+                              setSensorsList(list);
+                            }}
+                            placeholder="e.g. Boiler Temp"
+                            className="bg-black/30 border border-cyan/10 focus:border-cyan focus:shadow-[0_0_6px_rgba(0,229,255,0.15)] rounded px-2 py-1 text-white font-mono text-xs focus:outline-none transition-all duration-300 placeholder:text-white/20"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="font-mono text-[8px] text-cyan/50 uppercase">Unit</label>
+                          <input
+                            type="text"
+                            value={s.unit}
+                            onChange={(e) => {
+                              const list = [...sensorsList];
+                              list[idx].unit = e.target.value;
+                              setSensorsList(list);
+                            }}
+                            placeholder="e.g. °C"
+                            className="bg-black/30 border border-cyan/10 focus:border-cyan focus:shadow-[0_0_6px_rgba(0,229,255,0.15)] rounded px-2 py-1 text-white font-mono text-xs focus:outline-none transition-all duration-300 placeholder:text-white/20"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="font-mono text-[8px] text-cyan/50 uppercase">Warn Limit</label>
+                          <input
+                            type="number"
+                            value={s.warning}
+                            onChange={(e) => {
+                              const list = [...sensorsList];
+                              list[idx].warning = e.target.value;
+                              setSensorsList(list);
+                            }}
+                            placeholder="e.g. 90"
+                            className="bg-black/30 border border-cyan/10 focus:border-cyan focus:shadow-[0_0_6px_rgba(0,229,255,0.15)] rounded px-2 py-1 text-white font-mono text-xs focus:outline-none transition-all duration-300 placeholder:text-white/20"
+                            required
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="font-mono text-[8px] text-cyan/50 uppercase">Critical Limit</label>
+                          <input
+                            type="number"
+                            value={s.critical}
+                            onChange={(e) => {
+                              const list = [...sensorsList];
+                              list[idx].critical = e.target.value;
+                              setSensorsList(list);
+                            }}
+                            placeholder="e.g. 110"
+                            className="bg-black/30 border border-cyan/10 focus:border-cyan focus:shadow-[0_0_6px_rgba(0,229,255,0.15)] rounded px-2 py-1 text-white font-mono text-xs focus:outline-none transition-all duration-300 placeholder:text-white/20"
+                            required
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="font-mono text-[8px] text-cyan/50 uppercase">Max Value</label>
+                          <input
+                            type="number"
+                            value={s.max}
+                            onChange={(e) => {
+                              const list = [...sensorsList];
+                              list[idx].max = e.target.value;
+                              setSensorsList(list);
+                            }}
+                            placeholder="e.g. 150"
+                            className="bg-black/30 border border-cyan/10 focus:border-cyan focus:shadow-[0_0_6px_rgba(0,229,255,0.15)] rounded px-2 py-1 text-white font-mono text-xs focus:outline-none transition-all duration-300 placeholder:text-white/20"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-4 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setSensorsList([...sensorsList, { name: "", display: "", unit: "", warning: "", critical: "", max: "" }])}
+                    className="px-4 py-2 bg-cyan/10 hover:bg-cyan/20 border border-cyan/35 hover:border-cyan text-white font-mono text-[9px] tracking-wider uppercase rounded-xl transition-all duration-300 cursor-pointer shadow-[0_0_10px_rgba(0,229,255,0.1)]"
+                  >
+                    + Add Sensor
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/35 hover:border-emerald-500 text-white font-mono text-[9px] tracking-wider uppercase rounded-xl transition-all duration-300 cursor-pointer shadow-[0_0_10px_rgba(16,185,129,0.1)] ml-auto"
+                  >
+                    Create Machine
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
         )}
 

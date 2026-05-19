@@ -5,40 +5,79 @@ import CenterPanel from "./CenterPanel";
 import AlertsPanel from "./AlertsPanel";
 import ParticleBackground from "./ParticleBackground";
 
-// 1. DYNAMIC SYSTEM SCADA CONFIGURATION (SCALABLE JSON PATTERN)
-const MACHINES_CONFIG = [
-  {
-    id: "motor",
-    name: "THERMAL CORE MOTOR",
-    sensors: [
-      { id: "temp", name: "MOTOR CORE TEMP", value: 70, unit: "°C", max: 120, warn: 75, critical: 85 },
-      { id: "pressure", name: "CORE PRESSURE", value: 80, unit: "PSI", max: 150, warn: 85, critical: 100 },
-      { id: "vibration", name: "ROTOR VIBRATION", value: 1.2, unit: "g", max: 5, warn: 1.5, critical: 2.0 },
-      { id: "voltage", name: "LINE VOLTAGE", value: 185, unit: "V", max: 250, warn: 200, critical: 220 },
-      { id: "current", name: "INDUCTION CURRENT", value: 13, unit: "A", max: 30, warn: 22, critical: 26 }
-    ]
-  },
-  {
-    id: "pump",
-    name: "HYDRAULIC FLOW PUMP",
-    sensors: [
-      { id: "flow_rate", name: "FLOW RATE", value: 4.0, unit: "L/s", max: 6.0, warn: 3.5, critical: 2.5 },
-      { id: "pressure", name: "DISCHARGE PRESSURE", value: 90, unit: "PSI", max: 140, warn: 95, critical: 100 },
-      { id: "efficiency", name: "EFFICIENCY", value: 85, unit: "%", max: 100, warn: 75, critical: 70 }
-    ]
-  },
-  {
-    id: "generator",
-    name: "TURBINE GENERATOR POWER",
-    sensors: [
-      { id: "power", name: "POWER OUTPUT", value: 220, unit: "kW", max: 300, warn: 240, critical: 260 },
-      { id: "load", name: "GRID LOAD", value: 60, unit: "%", max: 100, warn: 75, critical: 85 },
-      { id: "frequency", name: "LINE FREQUENCY", value: 50, unit: "Hz", max: 60, warn: 49, critical: 48 }
-    ]
-  }
-];
-
 function Dashboard({ role }) {
+  // 1. DYNAMIC SYSTEM SCADA CONFIGURATION (SCALABLE JSON PATTERN)
+  const [configFiles, setConfigFiles] = useState([
+    "/machine_configs/motor.json",
+    "/machine_configs/pump.json",
+    "/machine_configs/generator.json"
+  ]);
+
+  const [MACHINES_CONFIG, setMachinesConfig] = useState([]);
+
+  const loadConfigFiles = () => {
+    fetch("/api/machines")
+      .then(res => {
+        if (!res.ok) throw new Error("API not available");
+        return res.json();
+      })
+      .then(files => {
+        const sortedFiles = files.sort((a, b) => {
+          const order = ["motor.json", "pump.json", "generator.json", "boiler.json"];
+          const aIndex = order.indexOf(a);
+          const bIndex = order.indexOf(b);
+          if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+          if (aIndex !== -1) return -1;
+          if (bIndex !== -1) return 1;
+          return a.localeCompare(b);
+        });
+        const paths = sortedFiles.map(file => `/machine_configs/${file}`);
+        setConfigFiles(paths);
+      })
+      .catch(err => {
+        console.warn("Using default static fallback machine configs list:", err);
+      });
+  };
+
+  useEffect(() => {
+    loadConfigFiles();
+  }, []);
+
+  // Expose configuration loader globally for interactive form submit callback
+  useEffect(() => {
+    window.onMachineCreated = loadConfigFiles;
+    return () => {
+      window.onMachineCreated = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (configFiles.length === 0) return;
+    Promise.all(
+      configFiles.map(file =>
+        fetch(file).then(res => res.json())
+      )
+    ).then(data => {
+      // Normalize machine and sensor structures so downstream properties (id, name, etc.) are always mapped cleanly
+      const normalizedData = data.map(m => {
+        const id = m.machineId || m.id;
+        const name = m.machineName || m.name;
+        const sensors = (m.sensors || []).map(s => ({
+          ...s,
+          id: s.id || s.name,
+          name: s.display || s.name
+        }));
+        return {
+          ...m,
+          id,
+          name,
+          sensors
+        };
+      });
+      setMachinesConfig(normalizedData);
+    });
+  }, [configFiles]);
+
   const [activeRole, setActiveRole] = useState(role);
   const isOperator = activeRole === "operator";
   const isManager = activeRole === "manager";
@@ -66,10 +105,11 @@ function Dashboard({ role }) {
     MACHINES_CONFIG.forEach(m => {
       const sensorsMap = {};
       m.sensors.forEach(s => {
+        const sVal = s.value !== undefined ? s.value : (s.warning || 0);
         sensorsMap[s.id] = {
           ...s,
-          current: s.value,
-          history: Array(15).fill(s.value)
+          current: sVal,
+          history: Array(15).fill(sVal)
         };
       });
       data[m.id] = {
@@ -84,6 +124,36 @@ function Dashboard({ role }) {
     return data;
   });
 
+  // Initialize machinesData when MACHINES_CONFIG is fetched
+  useEffect(() => {
+    if (MACHINES_CONFIG.length === 0) return;
+    setMachinesData(prev => {
+      const data = { ...prev };
+      MACHINES_CONFIG.forEach(m => {
+        if (!data[m.id]) {
+          const sensorsMap = {};
+          m.sensors.forEach(s => {
+            const sVal = s.value !== undefined ? s.value : (s.warning || 0);
+            sensorsMap[s.id] = {
+              ...s,
+              current: sVal,
+              history: Array(15).fill(sVal)
+            };
+          });
+          data[m.id] = {
+            id: m.id,
+            name: m.name,
+            mode: "normal",
+            state_time: Math.floor(Math.random() * 4) + 4,
+            sensors: sensorsMap,
+            risk: 0
+          };
+        }
+      });
+      return data;
+    });
+  }, [MACHINES_CONFIG]);
+
   const [alerts, setAlerts] = useState([]);
   const [alarmDismissed, setAlarmDismissed] = useState(false);
 
@@ -96,14 +166,14 @@ function Dashboard({ role }) {
   const currentMode = activeRole === "manager"
     ? "normal"
     : (selectedMachineId && machinesData[selectedMachineId]
-        ? machinesData[selectedMachineId].mode
-        : "normal");
+      ? machinesData[selectedMachineId].mode
+      : "normal");
 
   const currentRisk = activeRole === "manager"
     ? 0
     : (selectedMachineId && machinesData[selectedMachineId]
-        ? machinesData[selectedMachineId].risk
-        : 0);
+      ? machinesData[selectedMachineId].risk
+      : 0);
 
   // Reset alarm dismissed state if status moves away from failure
   useEffect(() => {
@@ -187,12 +257,17 @@ function Dashboard({ role }) {
   useEffect(() => {
     const fetchMachineData = (mId) => {
       const csvPath = `/datasets/${mId}_data.csv?ts=${Date.now()}`;
+      const m = MACHINES_CONFIG.find(x => x.id === mId);
+
       fetch(csvPath)
         .then(res => {
           if (!res.ok) throw new Error(`Failed to fetch CSV for ${mId}`);
           return res.text();
         })
         .then(text => {
+          if (text.trim().startsWith("<!DOCTYPE") || text.trim().startsWith("<html") || text.includes("<head>")) {
+            throw new Error("Returned HTML fallback instead of CSV");
+          }
           const rows = parseCSV(text);
           if (rows.length === 0) return;
           const latestRow = rows[rows.length - 1];
@@ -214,15 +289,23 @@ function Dashboard({ role }) {
               critical: Math.max(...historyValues, 10) * 0.85
             };
 
+            const configSensor = m?.sensors?.find(s => s.id === key || s.name === key || s.id === normKey || s.name === normKey);
+
+            const finalName = configSensor?.name || rule.name;
+            const finalUnit = configSensor?.unit || rule.unit;
+            const finalMax = configSensor?.max !== undefined ? configSensor.max : rule.max;
+            const finalWarn = configSensor?.warn !== undefined ? configSensor.warn : (configSensor?.warning !== undefined ? configSensor.warning : rule.warn);
+            const finalCritical = configSensor?.critical !== undefined ? configSensor.critical : rule.critical;
+
             sensorsMap[key] = {
               id: key,
-              name: rule.name,
-              value: rule.max * 0.7,
+              name: finalName,
+              value: finalMax * 0.7,
               current: currentVal,
-              unit: rule.unit,
-              max: rule.max,
-              warn: rule.warn,
-              critical: rule.critical,
+              unit: finalUnit,
+              max: finalMax,
+              warn: finalWarn,
+              critical: finalCritical,
               history: historyValues
             };
           });
@@ -293,7 +376,107 @@ function Dashboard({ role }) {
           }
         })
         .catch(err => {
-          console.error(`Error fetching telemetry CSV for ${mId}:`, err);
+          console.warn(`Could not fetch live telemetry CSV for ${mId}, using dynamic simulated telemetry:`, err);
+          if (!m) return;
+          
+          setMachinesData(prev => {
+            const next = { ...prev };
+            const currentMachine = next[mId];
+            if (!currentMachine) return prev;
+            
+            const sensorsMap = { ...currentMachine.sensors };
+            const newAlerts = [];
+            
+            Object.keys(sensorsMap).forEach(key => {
+              const s = sensorsMap[key];
+              const history = [...(s.history || Array(15).fill(s.current || 0))];
+              
+              // Simulate dynamic fluctuating micro-telemetry
+              const configSensor = m?.sensors?.find(x => x.id === key || x.name === key || x.id === key.toLowerCase() || x.name === key.toLowerCase());
+              const sMax = configSensor?.max !== undefined ? configSensor.max : (s.max || 120);
+              const sWarn = configSensor?.warn !== undefined ? configSensor.warn : (configSensor?.warning !== undefined ? configSensor.warning : (s.warn || 80));
+              const sCritical = configSensor?.critical !== undefined ? configSensor.critical : (s.critical || 100);
+              
+              // Let it fluctuate naturally around the warning threshold
+              const midPoint = sWarn * 0.95;
+              const delta = (Math.random() - 0.5) * (sMax * 0.04) + (midPoint - s.current) * 0.05;
+              let nextVal = s.current + delta;
+              nextVal = Math.max(0, Math.min(sMax, nextVal));
+              
+              history.push(nextVal);
+              if (history.length > 20) history.shift();
+              
+              sensorsMap[key] = {
+                ...s,
+                current: nextVal,
+                history,
+                max: sMax,
+                warn: sWarn,
+                critical: sCritical
+              };
+
+              // Alert check on breached simulated telemetry
+              if (nextVal >= sCritical) {
+                newAlerts.push({
+                  id: `alert-${mId}-${s.id}-${Date.now()}`,
+                  machineId: mId,
+                  type: "critical",
+                  sensor: s.name,
+                  msg: `🔴 CRITICAL OUT-OF-LIMITS: ${mId.toUpperCase()} ${s.name} of ${nextVal.toFixed(1)}${s.unit} breached critical threshold!`,
+                  time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                });
+              } else if (nextVal >= sWarn) {
+                newAlerts.push({
+                  id: `alert-${mId}-${s.id}-${Date.now()}`,
+                  machineId: mId,
+                  type: "warning",
+                  sensor: s.name,
+                  msg: `⚠️ TELEMETRY WARN WARNING: ${mId.toUpperCase()} ${s.name} at ${nextVal.toFixed(1)}${s.unit} exceeds caution limits.`,
+                  time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                });
+              }
+            });
+
+            const hasCritical = Object.values(sensorsMap).some(s => s.current >= s.critical);
+            const hasWarning = Object.values(sensorsMap).some(s => s.current >= s.warn);
+            const finalMode = hasCritical ? "failure" : (hasWarning ? "warning" : "normal");
+            
+            const prevMode = currentMachine.mode;
+            const criticalCount = Object.values(sensorsMap).filter(s => s.current >= s.warn).length;
+            const finalRisk = Math.max(0, Math.min(100, Math.round((criticalCount / Object.keys(sensorsMap).length) * 100)));
+
+            next[mId] = {
+              ...currentMachine,
+              sensors: sensorsMap,
+              mode: finalMode,
+              risk: finalRisk
+            };
+
+            if (finalMode === "failure" && prevMode !== "failure" && !alarmDismissed) {
+              if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(`${currentMachine.name} facing failure`);
+                utterance.rate = 1.0;
+                utterance.pitch = 0.95;
+                window.speechSynthesis.speak(utterance);
+              }
+            }
+
+            if (newAlerts.length > 0) {
+              setAlerts(prevAlerts => {
+                const keys = new Set();
+                const blended = [...newAlerts, ...prevAlerts];
+                return blended.filter(a => {
+                  const key = `${a.machineId}-${a.sensor}`;
+                  if (keys.has(key)) return false;
+                  keys.add(key);
+                  return true;
+                }).slice(0, 10);
+              });
+            }
+
+            return next;
+          });
         });
     };
 
@@ -306,7 +489,7 @@ function Dashboard({ role }) {
     fetchAllData();
     const interval = setInterval(fetchAllData, 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [MACHINES_CONFIG]);
 
   const ackAlert = (id) => {
     setAlerts(prev => prev.filter(a => a.id !== id));
@@ -413,6 +596,7 @@ function Dashboard({ role }) {
           <div className="selection-grid">
             {MACHINES_CONFIG.map(m => {
               const live = machinesData[m.id];
+              if (!live) return null;
               const isW = live.mode === "warning";
               const isF = live.mode === "failure";
               const mClass = isF ? "critical" : isW ? "warn" : "normal";
