@@ -10,14 +10,14 @@ function Gauge({ title, value, max = 100, unit = "%", warnLimit = 70, critLimit 
   const strokeDashoffset = arcLength - (score / max) * arcLength;
 
   // Determine dynamic severity colors
-  let valColor = "var(--green)";
+  let valColor = "var(--emerald)";
   if (score >= critLimit) {
-    valColor = "var(--red)";
+    valColor = "var(--rose)";
   } else if (score >= warnLimit) {
-    valColor = "var(--yellow)";
+    valColor = "var(--amber)";
   } else if (title.toLowerCase().includes("risk") && score >= 40) {
     // Risk uses warning color above 40
-    valColor = score >= 70 ? "var(--red)" : "var(--yellow)";
+    valColor = score >= 70 ? "var(--rose)" : "var(--amber)";
   }
 
   // Draw circular ticks for SCADA instrumentation effect
@@ -123,7 +123,7 @@ function Gauge({ title, value, max = 100, unit = "%", warnLimit = 70, critLimit 
             }}
           >
             {Math.round(score)}
-            <tspan fontSize="10" fontWeight="500" fill="var(--text-muted)">{unit}</tspan>
+            <tspan fontSize="10" fontWeight="500" fill="var(--ink-500)">{unit}</tspan>
           </text>
           
           <text
@@ -132,7 +132,7 @@ function Gauge({ title, value, max = 100, unit = "%", warnLimit = 70, critLimit 
             textAnchor="middle"
             fontFamily="var(--font-mono)"
             fontSize="7"
-            fill="var(--text-muted)"
+            fill="var(--ink-500)"
             letterSpacing="0.05em"
           >
             {score >= critLimit ? "CRIT LIMIT" : score >= warnLimit ? "WARNING LIMIT" : "SYS NOMINAL"}

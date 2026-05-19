@@ -42,10 +42,10 @@ function Login({ onLogin }) {
         current++;
       } else {
         clearInterval(interval);
-        sessionStorage.setItem("bootShown", "true"); // Persist that we have shown boot sequence this session
+        sessionStorage.setItem("bootShown", "true");
         setTimeout(() => {
           setBooting(false);
-        }, 600); // Smooth unlock delay
+        }, 600);
       }
     }, 380);
 
@@ -57,20 +57,45 @@ function Login({ onLogin }) {
       {/* Moving background node particles */}
       <ParticleBackground mode="normal" />
 
+      {/* Ambient depth layers — pure CSS, no extra deps */}
+      <div className="ambient-orb ambient-orb-a" />
+      <div className="ambient-orb ambient-orb-b" />
+      <div className="ambient-orb ambient-orb-c" />
+      <div className="ambient-grid" />
+
+      {/* CSS 3D rotating model (wireframe cube w/ inner core) */}
+      <div className="hero-3d-stage">
+        <div className="hero-3d-rings">
+          <span className="ring ring-1" />
+          <span className="ring ring-2" />
+          <span className="ring ring-3" />
+        </div>
+        <div className="hero-3d-cube">
+          <div className="cube-face cube-front" />
+          <div className="cube-face cube-back" />
+          <div className="cube-face cube-right" />
+          <div className="cube-face cube-left" />
+          <div className="cube-face cube-top" />
+          <div className="cube-face cube-bottom" />
+          <div className="cube-core" />
+        </div>
+        <div className="hero-3d-floor" />
+      </div>
+
       {/* Futuristic cursor glowing aura */}
-      <div 
-        className="cursor-glow" 
-        style={{ 
-          left: `${coords.x}px`, 
-          top: `${coords.y}px` 
-        }} 
+      <div
+        className="cursor-glow"
+        style={{
+          left: `${coords.x}px`,
+          top: `${coords.y}px`
+        }}
       />
 
       {/* Header section with text shadow glows and sweeps */}
       <div className="login-header-block fade-in">
         <h1>NEXUS HMI</h1>
         <p>AI-POWERED INDUSTRIAL CONTROL INTERFACE v2.0</p>
-        
+
         {/* Active SCADA status indicator pills */}
         <div className="sys-indicators">
           <div className="indicator-badge online">
@@ -97,8 +122,7 @@ function Login({ onLogin }) {
           </div>
           {bootLogs.map((log, i) => (
             <div key={i} className="boot-log-entry">
-              <span>{i === bootLogs.length - 1 && log?.includes?.("READY") ? "✔" : "❯"}</span>
-              <span>{log}</span>
+              {log}
             </div>
           ))}
         </div>

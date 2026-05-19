@@ -7,11 +7,11 @@ function LinearSCADAIndicator({ title, value, max = 100, unit = "%", warnLimit =
   const score = Math.min(Math.max(0, value), max);
   const fillPct = (score / max) * 100;
 
-  let barColor = "var(--green)";
+  let barColor = "var(--emerald)";
   if (score >= critLimit) {
-    barColor = "var(--red)";
+    barColor = "var(--rose)";
   } else if (score >= warnLimit) {
-    barColor = "var(--yellow)";
+    barColor = "var(--brand)";
   }
 
   return (
@@ -211,7 +211,7 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
             <div className="supporting-telemetry-header">◆ SUPPORTING SYSTEM TELEMETRY (LOW-OPACITY REFERENCE)</div>
             <div className="secondary-visuals-grid">
               {sensorArray.slice(1).map((s, idx) => {
-                const colors = ["var(--blue)", "var(--yellow)", "var(--green)", "var(--purple)", "var(--accent)"];
+                const colors = ["var(--sky)", "var(--brand)", "var(--emerald)", "var(--indigo)", "var(--brand)"];
                 const color = colors[idx % colors.length];
                 return (
                   <Chart
@@ -302,15 +302,15 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
 
         {/* Sleek ENGINEER Machine switcher tabs */}
         <div className="engineer-machine-switcher fade-in" style={{ display: "flex", gap: "10px", marginBottom: "5px", borderBottom: "1px solid rgba(255, 255, 255, 0.05)", paddingBottom: "12px", flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.62rem", color: "var(--text-muted)", alignSelf: "center", marginRight: "10px" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.62rem", color: "var(--ink-500)", alignSelf: "center", marginRight: "10px" }}>
             📡 ACTIVE TARGET SWITCHER:
           </span>
           {Object.keys(machinesData).map(mId => {
             const m = machinesData[mId];
             const isActive = selectedMachineId === mId;
-            let neonColor = "var(--green)";
-            if (m.mode === "failure") neonColor = "var(--red)";
-            else if (m.mode === "warning") neonColor = "var(--yellow)";
+            let neonColor = "var(--emerald)";
+            if (m.mode === "failure") neonColor = "var(--rose)";
+            else if (m.mode === "warning") neonColor = "var(--brand)";
 
             return (
               <button
@@ -318,14 +318,14 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
                 className={`scada-action-tab ${isActive ? "active" : ""}`}
                 onClick={() => setSelectedMachineId(mId)}
                 style={{
-                  border: `1px solid ${isActive ? neonColor : "rgba(255,255,255,0.08)"}`,
+                  border: `1px solid ${isActive ? neonColor : "rgba(255, 91, 46, 0.12)"}`,
                   boxShadow: isActive ? `0 0 10px ${neonColor}` : "none",
                   fontFamily: "var(--font-mono)",
                   fontSize: "0.65rem",
                   padding: "5px 12px",
                   borderRadius: "4px",
-                  background: isActive ? `rgba(${m.mode === "failure" ? "255,59,59" : m.mode === "warning" ? "255,170,0" : "0,230,118"}, 0.1)` : "transparent",
-                  color: isActive ? neonColor : "var(--text-muted)",
+                  background: isActive ? m.mode === "failure" ? "rgba(255, 59, 107, 0.08)" : m.mode === "warning" ? "rgba(255, 91, 46, 0.08)" : "rgba(52, 211, 153, 0.08)" : "transparent",
+                  color: isActive ? neonColor : "var(--ink-500)",
                   cursor: "pointer",
                   transition: "all 0.3s"
                 }}
@@ -348,7 +348,7 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
         {activeTab === "trends" && (
           <div className="chart-grid fade-in">
             {sensorArray.map((s, idx) => {
-              const colors = ["var(--red)", "var(--blue)", "var(--yellow)", "var(--green)", "var(--accent)", "var(--purple)"];
+              const colors = ["var(--rose)", "var(--sky)", "var(--brand)", "var(--emerald)", "var(--indigo)", "var(--brand)"];
               const color = colors[idx % colors.length];
               return (
                 <Chart
@@ -499,21 +499,21 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
         {/* Top Operational Status KPI strip */}
         <div className="manager-kpi" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
           <div className="kpi-card fade-in">
-            <span className="kpi-val" style={{ color: "var(--green)" }}>99.98%</span>
+            <span className="kpi-val" style={{ color: "var(--emerald)" }}>99.98%</span>
             <div className="kpi-label">GRID RUNTIME UPTIME</div>
           </div>
           <div className="kpi-card fade-in" style={{ animationDelay: "0.05s" }}>
-            <span className="kpi-val" style={{ color: "var(--yellow)" }}>
+            <span className="kpi-val" style={{ color: "var(--brand)" }}>
               {Object.values(machinesData).filter(m => m.mode === "failure").length}
             </span>
             <div className="kpi-label">ACTIVE SEVERE FAILURES</div>
           </div>
           <div className="kpi-card fade-in" style={{ animationDelay: "0.1s" }}>
-            <span className="kpi-val" style={{ color: "var(--blue)" }}>95.6%</span>
+            <span className="kpi-val" style={{ color: "var(--indigo)" }}>95.6%</span>
             <div className="kpi-label">AI PREDICTIVE RISK SYNCS</div>
           </div>
           <div className="kpi-card fade-in" style={{ animationDelay: "0.15s" }}>
-            <span className="kpi-val" style={{ color: "var(--green)" }}>1.1s</span>
+            <span className="kpi-val" style={{ color: "var(--emerald)" }}>1.1s</span>
             <div className="kpi-label">AVERAGE RESPONSE LATENCY</div>
           </div>
         </div>
@@ -543,18 +543,15 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
               activeMode = "warning";
             }
 
-            let borderNeon = "rgba(0, 230, 118, 0.15)";
-            let backgroundGlow = "rgba(0, 0, 0, 0.2)";
-            let textGlow = "var(--green)";
+            let borderNeon = "rgba(16, 185, 129, 0.15)";
+            let textGlow = "var(--emerald)";
 
             if (activeMode === "failure") {
-              borderNeon = "var(--red)";
-              backgroundGlow = "rgba(255, 59, 59, 0.05)";
-              textGlow = "var(--red)";
+              borderNeon = "var(--rose)";
+              textGlow = "var(--rose)";
             } else if (activeMode === "warning") {
-              borderNeon = "var(--yellow)";
-              backgroundGlow = "rgba(255, 170, 0, 0.05)";
-              textGlow = "var(--yellow)";
+              borderNeon = "var(--brand)";
+              textGlow = "var(--brand)";
             }
 
             return (
@@ -562,26 +559,22 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
                 key={mId}
                 className={`manager-machine-card ${activeMode} fade-in`}
                 style={{
-                  background: `rgba(7, 18, 33, 0.9)`,
-                  border: `1px solid ${borderNeon}`,
-                  boxShadow: activeMode !== "normal" ? `0 0 25px ${borderNeon}, inset 0 0 10px ${backgroundGlow}` : "inset 0 0 10px rgba(0, 0, 0, 0.2)",
-                  borderRadius: "8px",
-                  padding: "16px",
+                  border: `1px solid ${activeMode !== "normal" ? borderNeon : "rgba(255, 91, 46, 0.15)"}`,
+                  boxShadow: activeMode !== "normal" ? `0 0 16px ${borderNeon}40` : "none",
                   display: "flex",
                   flexDirection: "column",
-                  gap: "12px",
-                  transition: "all 0.5s cubic-bezier(0.16, 1, 0.3, 1)"
+                  gap: "12px"
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255, 91, 46, 0.15)", paddingBottom: "8px" }}>
                   <div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.55rem", color: "var(--text-muted)" }}>STATION segment</div>
-                    <div style={{ fontFamily: "var(--font-title)", fontSize: "0.95rem", fontWeight: 700, color: "var(--text-main)", letterSpacing: "0.05em" }}>{m.name}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.55rem", color: "var(--ink-500)" }}>STATION segment</div>
+                    <div style={{ fontFamily: "var(--font-title)", fontSize: "0.95rem", fontWeight: 700, color: "var(--ink-900)", letterSpacing: "0.05em" }}>{m.name}</div>
                   </div>
                   <span
                     className={`selection-status-badge`}
                     style={{
-                      background: activeMode === "failure" ? "rgba(255,59,59,0.15)" : activeMode === "warning" ? "rgba(255,170,0,0.15)" : "rgba(0,230,118,0.15)",
+                      background: activeMode === "failure" ? "rgba(255, 59, 107, 0.08)" : activeMode === "warning" ? "rgba(255, 91, 46, 0.08)" : "rgba(52, 211, 153, 0.08)",
                       color: textGlow,
                       border: `1px solid ${textGlow}`,
                       padding: "2px 8px",
@@ -589,7 +582,7 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
                       fontFamily: "var(--font-mono)",
                       borderRadius: "4px",
                       textTransform: "uppercase",
-                      boxShadow: `0 0 8px ${textGlow}`
+                      boxShadow: `0 0 8px ${textGlow}30`
                     }}
                   >
                     {activeMode}
@@ -650,7 +643,7 @@ function CenterPanel({ role, mode, selectedMachineId, setSelectedMachineId, mach
                     {Object.values(mSensors).slice(0, 3).map((s) => (
                       <div key={s.id} className="manager-stat-row">
                         <span className="manager-stat-name">{s.name}</span>
-                        <span className="manager-stat-val" style={{ color: s.current >= s.warn ? "var(--yellow)" : "var(--text-main)" }}>
+                        <span className="manager-stat-val" style={{ color: s.current >= s.warn ? "var(--brand)" : "var(--ink-900)" }}>
                           {s.current.toFixed(1)}{s.unit}
                         </span>
                       </div>

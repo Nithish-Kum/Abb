@@ -35,7 +35,7 @@ function AIInsight({ mode }) {
         <span
           style={{
             fontSize: "0.62rem",
-            color: "var(--accent)",
+            color: "var(--indigo)",
             fontFamily: "var(--font-mono)",
             letterSpacing: "0.15em",
             fontWeight: "700",
@@ -51,7 +51,7 @@ function AIInsight({ mode }) {
           style={{
             fontSize: "0.58rem",
             fontFamily: "var(--font-mono)",
-            color: "var(--text-muted)",
+            color: "var(--ink-500)",
             letterSpacing: "0.05em"
           }}
         >

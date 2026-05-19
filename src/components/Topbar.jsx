@@ -15,10 +15,10 @@ function Topbar({ role, mode, selectedMachineId, onSwitchMachine }) {
   }, []);
 
   const modeConfigs = {
-    normal: { text: "◆ SYSTEM STATE: NORMAL ◆", cls: "mode-normal", dotColor: "var(--green)" },
-    warning: { text: "⚠ SYSTEM WARNING", cls: "mode-warning", dotColor: "var(--yellow)" },
-    failure: { text: "🚨 CRITICAL FAILURE DETECTED 🚨", cls: "mode-failure", dotColor: "var(--red)" },
-    recovery: { text: "SYSTEM RECOVERING...", cls: "mode-recovery", dotColor: "var(--blue)" }
+    normal: { text: "◆ SYSTEM STATE: NORMAL ◆", cls: "mode-normal", dotColor: "var(--emerald)" },
+    warning: { text: "⚠ SYSTEM WARNING", cls: "mode-warning", dotColor: "var(--brand)" },
+    failure: { text: "🚨 CRITICAL FAILURE DETECTED 🚨", cls: "mode-failure", dotColor: "var(--rose)" },
+    recovery: { text: "SYSTEM RECOVERING...", cls: "mode-recovery", dotColor: "var(--indigo)" }
   };
   const cfg = modeConfigs[mode.toLowerCase()] || modeConfigs.normal;
 
@@ -27,10 +27,10 @@ function Topbar({ role, mode, selectedMachineId, onSwitchMachine }) {
       <div className="topbar-left">
         <div className="logo-small">NEXUS HMI</div>
         <div className="sys-status">
-          <div 
-            className="status-dot" 
-            style={{ 
-              background: cfg.dotColor, 
+          <div
+            className="status-dot"
+            style={{
+              background: cfg.dotColor,
               boxShadow: `0 0 10px ${cfg.dotColor}`,
               transition: "background 0.3s"
             }}
@@ -38,22 +38,22 @@ function Topbar({ role, mode, selectedMachineId, onSwitchMachine }) {
           <span>GRID SECURE</span>
         </div>
       </div>
-      
+
       <div className="topbar-center">
         <div className={`sys-mode ${cfg.cls}`} style={{ transition: "all 0.5s ease" }}>
           {cfg.text}
         </div>
       </div>
-      
+
       <div className="topbar-right">
         {role === "operator" && selectedMachineId && (
-          <button 
-            className="logout-btn" 
-            onClick={onSwitchMachine} 
-            style={{ 
-              borderColor: "rgba(var(--accent-rgb), 0.4)", 
-              color: "var(--accent)", 
-              boxShadow: "0 0 6px rgba(var(--accent-rgb), 0.15)",
+          <button
+            className="logout-btn"
+            onClick={onSwitchMachine}
+            style={{
+              borderColor: "rgba(255, 91, 46, 0.4)",
+              color: "var(--brand)",
+              boxShadow: "0 0 6px rgba(255, 91, 46, 0.15)",
               marginRight: "8px"
             }}
           >

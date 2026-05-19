@@ -18,24 +18,18 @@ function Chart({ title, value, data = [], color, warnVal, critVal }) {
   }));
 
   // Determine value-based styling color
-  let valColor = "var(--accent)";
+  let valColor = "var(--brand)";
   if (numericVal >= critVal) {
-    valColor = "var(--red)";
+    valColor = "var(--rose)";
   } else if (numericVal >= warnVal) {
-    valColor = "var(--yellow)";
+    valColor = "var(--brand)";
   }
 
   // Unique gradient id
   const gradId = `chartGrad-${title.replace(/\s+/g, '')}`;
 
   return (
-    <div
-      className="chart-card fade-in"
-      style={{
-        border: "1px solid rgba(255,255,255,0.05)", // debug visibility
-        borderRadius: "8px"
-      }}
-    >
+    <div className="chart-card fade-in">
       <div className="chart-header">
         <div className="chart-title">◆ {title}</div>
         <div className="chart-val" style={{ color: valColor }}>
@@ -56,7 +50,7 @@ function Chart({ title, value, data = [], color, warnVal, critVal }) {
             </defs>
 
             <CartesianGrid
-              stroke="rgba(255, 255, 255, 0.025)"
+              stroke="rgba(255, 91, 46, 0.05)"
               strokeDasharray="2 3"
               vertical={false}
             />
@@ -64,17 +58,17 @@ function Chart({ title, value, data = [], color, warnVal, critVal }) {
             {warnVal && (
               <ReferenceLine 
                 y={warnVal} 
-                stroke="var(--yellow)" 
+                stroke="var(--brand)" 
                 strokeDasharray="3 3" 
-                label={{ value: 'WARN', fill: 'var(--yellow)', fontSize: 7, position: 'insideRight', offset: 10 }} 
+                label={{ value: 'WARN', fill: 'var(--brand)', fontSize: 7, position: 'insideRight', offset: 10 }} 
               />
             )}
             {critVal && (
               <ReferenceLine 
                 y={critVal} 
-                stroke="var(--red)" 
+                stroke="var(--rose)" 
                 strokeDasharray="3 3" 
-                label={{ value: 'CRIT', fill: 'var(--red)', fontSize: 7, position: 'insideRight', offset: 10 }} 
+                label={{ value: 'CRIT', fill: 'var(--rose)', fontSize: 7, position: 'insideRight', offset: 10 }} 
               />
             )}
 
@@ -88,9 +82,9 @@ function Chart({ title, value, data = [], color, warnVal, critVal }) {
               animationDuration={600}
               dot={({ cx, cy, payload }) => {
                 if (critVal && payload.telemetry >= critVal) {
-                  return <circle cx={cx} cy={cy} r={4.5} fill="var(--red)" stroke="#fff" strokeWidth={1} filter="drop-shadow(0 0 5px var(--red))" key={`dot-${cx}-${cy}`} />;
+                  return <circle cx={cx} cy={cy} r={4.5} fill="var(--rose)" stroke="#fff" strokeWidth={1} filter="drop-shadow(0 0 5px var(--rose))" key={`dot-${cx}-${cy}`} />;
                 } else if (warnVal && payload.telemetry >= warnVal) {
-                  return <circle cx={cx} cy={cy} r={4.5} fill="var(--yellow)" stroke="#fff" strokeWidth={1} filter="drop-shadow(0 0 5px var(--yellow))" key={`dot-${cx}-${cy}`} />;
+                  return <circle cx={cx} cy={cy} r={4.5} fill="var(--brand)" stroke="#fff" strokeWidth={1} filter="drop-shadow(0 0 5px var(--brand))" key={`dot-${cx}-${cy}`} />;
                 }
                 return null;
               }}
@@ -105,13 +99,14 @@ function Chart({ title, value, data = [], color, warnVal, critVal }) {
                   return (
                     <div
                       style={{
-                        background: "rgba(5, 15, 25, 0.9)",
+                        background: "rgba(15, 22, 50, 0.95)",
                         border: `1px solid ${color}`,
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        fontSize: "0.65rem",
+                        padding: "6px 10px",
+                        borderRadius: "6px",
+                        fontSize: "0.68rem",
                         fontFamily: "var(--font-mono)",
-                        color: "var(--text-main)"
+                        color: "#fff",
+                        boxShadow: "0 10px 30px rgba(0,0,0,0.5)"
                       }}
                     >
                       VAL: {Math.round(payload[0].value * 100) / 100}

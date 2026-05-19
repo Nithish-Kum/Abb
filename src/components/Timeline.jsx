@@ -5,10 +5,10 @@ function Timeline({ mode }) {
 
   useEffect(() => {
     const msgs = {
-      normal: { color: "var(--green)", msg: "SYSTEM NORMAL: Telemetry stabilized within safe limits." },
-      warning: { color: "var(--yellow)", msg: "ANOMALY EXCURSION: AI escalation triggered on elevated sensors." },
-      failure: { color: "var(--red)", msg: "CRITICAL BREACH: Safety threshold failure. Emergency routines active." },
-      recovery: { color: "var(--blue)", msg: "RECOVERY SYSTEM: Restoring baseline parameters. Bypass engaged." }
+      normal: { color: "var(--emerald)", msg: "SYSTEM NORMAL: Telemetry stabilized within safe limits." },
+      warning: { color: "var(--amber)", msg: "ANOMALY EXCURSION: AI escalation triggered on elevated sensors." },
+      failure: { color: "var(--rose)", msg: "CRITICAL BREACH: Safety threshold failure. Emergency routines active." },
+      recovery: { color: "var(--indigo)", msg: "RECOVERY SYSTEM: Restoring baseline parameters. Bypass engaged." }
     };
     
     const m = msgs[mode.toLowerCase()];
@@ -33,7 +33,7 @@ function Timeline({ mode }) {
           <div 
             style={{
               textAlign: "center",
-              color: "var(--text-muted)",
+              color: "var(--ink-500)",
               fontSize: "0.7rem",
               padding: "16px 0",
               fontFamily: "var(--font-mono)"

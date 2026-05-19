@@ -43,6 +43,17 @@ function Dashboard({ role }) {
   const isManager = role === "manager";
   const isEngineer = role === "engineer";
 
+  const [coords, setCoords] = useState({ x: -1000, y: -1000 });
+
+  // Futuristic Cursor Follower Glow Trail
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      setCoords({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, []);
+
   // Operator selection flow state, dynamic bind default selection for engineer/manager
   const [selectedMachineId, setSelectedMachineId] = useState(() => {
     return isOperator ? "" : "motor";
@@ -73,15 +84,15 @@ function Dashboard({ role }) {
   });
 
   const [alerts, setAlerts] = useState([]);
-  
+
   // Audio alarm references
   const alarmCtxRef = useRef(null);
   const alarmIntervalRef = useRef(null);
   const lastStateRef = useRef("normal");
 
   // Dynamic system status calculations based on selected machine
-  const currentMode = selectedMachineId && machinesData[selectedMachineId] 
-    ? machinesData[selectedMachineId].mode 
+  const currentMode = selectedMachineId && machinesData[selectedMachineId]
+    ? machinesData[selectedMachineId].mode
     : "normal";
 
   const currentRisk = selectedMachineId && machinesData[selectedMachineId]
@@ -149,16 +160,16 @@ function Dashboard({ role }) {
           const rows = parseCSV(text);
           if (rows.length === 0) return;
           const latestRow = rows[rows.length - 1];
-          
+
           const sensorKeys = Object.keys(latestRow).filter(k => k !== "timestamp" && k !== "status" && k !== "risk");
           const sensorsMap = {};
-          
+
           sensorKeys.forEach(key => {
             const histRows = rows.slice(-20);
             const historyValues = histRows.map(r => Number(r[key]) || 0);
             const currentVal = Number(latestRow[key]) || 0;
             const normKey = key.toLowerCase();
-            
+
             const rule = SENSOR_METRIC_RULES[normKey] || {
               name: key.toUpperCase().replace("_", " "),
               unit: getUnit(key),
@@ -263,7 +274,7 @@ function Dashboard({ role }) {
       } else if (currentMode === "failure") {
         startFailureBuzzer();
       }
-      
+
       lastStateRef.current = currentMode;
     }
   }, [currentMode]);
@@ -292,9 +303,9 @@ function Dashboard({ role }) {
       trigger(0);
       trigger(0.6);
       setTimeout(() => {
-        try { ctx.close(); } catch (e) {}
+        try { ctx.close(); } catch (e) { }
       }, 1500);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const startFailureBuzzer = () => {
@@ -316,7 +327,7 @@ function Dashboard({ role }) {
       };
       pulse();
       alarmIntervalRef.current = setInterval(pulse, 280);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const stopAllSounds = () => {
@@ -325,7 +336,7 @@ function Dashboard({ role }) {
       alarmIntervalRef.current = null;
     }
     if (alarmCtxRef.current) {
-      try { alarmCtxRef.current.close(); } catch (e) {}
+      try { alarmCtxRef.current.close(); } catch (e) { }
       alarmCtxRef.current = null;
     }
   };
@@ -342,8 +353,8 @@ function Dashboard({ role }) {
   };
 
   // Filter alerts matching the operator's selected machine
-  const activeAlerts = isOperator 
-    ? alerts.filter(a => a.machineId === selectedMachineId) 
+  const activeAlerts = isOperator
+    ? alerts.filter(a => a.machineId === selectedMachineId)
     : alerts;
 
   // 3. OPERATOR MACHINE SELECTION SCREEN LAYOUT
@@ -351,34 +362,14 @@ function Dashboard({ role }) {
     return (
       <div className="selection-screen-container fade-in" style={{ position: "relative" }}>
         {/* Floating Logout Button at Top Right */}
-        <button 
-          className="logout-btn" 
+        <button
+          className="logout-btn"
           onClick={() => window.location.reload()}
           style={{
             position: "absolute",
             top: "24px",
             right: "24px",
-            padding: "8px 18px",
-            fontSize: "0.75rem",
-            background: "rgba(4, 11, 20, 0.85)",
-            border: "1px solid var(--border-color)",
-            color: "var(--text-muted)",
-            cursor: "pointer",
-            borderRadius: "4px",
-            fontFamily: "var(--font-mono)",
-            letterSpacing: "0.1em",
-            zIndex: 10,
-            transition: "all var(--transition-fast)"
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = "var(--red)";
-            e.currentTarget.style.color = "var(--red)";
-            e.currentTarget.style.boxShadow = "0 0 10px rgba(255, 59, 59, 0.25)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "var(--border-color)";
-            e.currentTarget.style.color = "var(--text-muted)";
-            e.currentTarget.style.boxShadow = "none";
+            zIndex: 10
           }}
         >
           ⏏ LOGOUT
@@ -397,15 +388,15 @@ function Dashboard({ role }) {
               const mClass = isF ? "critical" : isW ? "warn" : "normal";
 
               return (
-                <div 
-                  key={m.id} 
+                <div
+                  key={m.id}
                   className={`selection-item-card ${mClass}`}
                   onClick={() => setSelectedMachineId(m.id)}
                 >
                   <div className="selection-item-glow-strip" />
                   <div className="selection-item-header">Station Segment</div>
                   <div className="selection-item-title">{live.name}</div>
-                  
+
                   <div className="selection-item-status">
                     Status: <span className="selection-status-badge">{live.mode.toUpperCase()}</span>
                   </div>
@@ -427,21 +418,35 @@ function Dashboard({ role }) {
 
   const criticalAlertsList = activeAlerts.filter(a => a.type === "critical");
   const warningAlertsList = activeAlerts.filter(a => a.type === "warning");
-  const topAlert = criticalAlertsList.length > 0 
-    ? criticalAlertsList[0] 
+  const topAlert = criticalAlertsList.length > 0
+    ? criticalAlertsList[0]
     : (warningAlertsList.length > 0 ? warningAlertsList[0] : null);
 
   return (
     <div
       id="app"
-      style={{ display: "block", minHeight: "100vh" }}
       className={`dashboard ${getThemeClass()} ${currentMode === "failure" ? "emergency-mode" : ""}`}
     >
+      {/* Moving background node particles */}
+      <ParticleBackground mode={currentMode} />
+
+      {/* Ambient depth layers — pure CSS, no extra deps */}
+      <div className="ambient-orb ambient-orb-a" />
+      <div className="ambient-orb ambient-orb-b" />
+      <div className="ambient-orb ambient-orb-c" />
+      <div className="ambient-grid" />
+
+      {/* Futuristic cursor glowing aura */}
+      <div
+        className="cursor-glow"
+        style={{
+          left: `${coords.x}px`,
+          top: `${coords.y}px`
+        }}
+      />
+
       {/* 🔴 Screen Failure overlay (pulsing red low opacity filter) */}
       {currentMode === "failure" && <div className="emergency-overlay"></div>}
-
-      {/* Dynamic Futuristic Canvas Particle Background */}
-      <ParticleBackground mode={currentMode} />
 
       {/* Extreme Risk Focus Notification Ring */}
       {shouldFocus && (
@@ -459,11 +464,11 @@ function Dashboard({ role }) {
       ) : (
         <>
           {/* Main layout Topbar with dynamic switch capabilities */}
-          <Topbar 
-            role={role} 
-            mode={currentMode} 
-            selectedMachineId={selectedMachineId} 
-            onSwitchMachine={() => setSelectedMachineId("")} 
+          <Topbar
+            role={role}
+            mode={currentMode}
+            selectedMachineId={selectedMachineId}
+            onSwitchMachine={() => setSelectedMachineId("")}
           />
 
           {/* ⚡ Glowing Global Top Alert Bar (Mandatory high-visibility alert) */}
